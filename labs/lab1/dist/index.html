@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spatiotemporal Eye-Tracking Analysis</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Outfit:wght@400;700&display=swap"
+        rel="stylesheet">
+  <script type="module" crossorigin src="/assets/index-BZfNwVkz.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-DN7F6KFP.css">
+</head>
+
+<body>
+    <div id="app">
+        <header class="glass-header">
+            <h1>Eye-Tracking Spatiotemporal Dashboard</h1>
+            <p>Analyze fixations, extract areas of interest (AOIs), and discover visual flows over varied time subsets.
+            </p>
+
+            <div class="filter-bar">
+                <div class="filter-group">
+                    <label for="duration-filter">Min Duration: <span id="duration-val">0ms</span></label>
+                    <input type="range" id="duration-filter" min="0" max="1000" step="10" value="0"
+                        class="styled-slider">
+                </div>
+                <div class="filter-group">
+                    <label for="time-start">Window Start (s):</label>
+                    <input type="number" id="time-start" min="0" value="0" class="styled-input">
+                </div>
+                <div class="filter-group">
+                    <label for="time-end">Window End (s):</label>
+                    <input type="number" id="time-end" min="0" value="300" class="styled-input">
+                </div>
+                <div class="filter-group filter-group-wide">
+                    <label for="time-start-slider">Start Slider</label>
+                    <input type="range" id="time-start-slider" min="0" max="300" step="1" value="0"
+                        class="styled-slider">
+                </div>
+                <div class="filter-group filter-group-wide">
+                    <label for="time-end-slider">End Slider</label>
+                    <input type="range" id="time-end-slider" min="0" max="300" step="1" value="300"
+                        class="styled-slider">
+                </div>
+                <div class="filter-group">
+                    <label for="play-step">Play Step: <span id="play-step-val">5s</span></label>
+                    <input type="range" id="play-step" min="1" max="20" step="1" value="5" class="styled-slider">
+                </div>
+                <button id="play-window">Play Window</button>
+                <button id="reset-window">Reset Window</button>
+                <div class="filter-group">
+                    <span>Window Size: <strong id="window-size-val">0s</strong></span>
+                </div>
+                <div class="filter-group">
+                    <label for="bin-size">Temporal Bin: <span id="bin-size-val">10s</span></label>
+                    <input type="range" id="bin-size" min="5" max="60" step="5" value="10" class="styled-slider">
+                </div>
+                <div class="filter-group">
+                    <label for="temporal-mode">Timeline Metric</label>
+                    <select id="temporal-mode" class="styled-input styled-select">
+                        <option value="count" selected>Fixation Count</option>
+                        <option value="duration">Total Duration</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="flow-min-count">Flow Threshold: <span id="flow-min-count-val">1</span></label>
+                    <input type="range" id="flow-min-count" min="1" max="30" step="1" value="1" class="styled-slider">
+                </div>
+                <div class="filter-group filter-inline-checkbox">
+                    <input type="checkbox" id="flow-normalize">
+                    <label for="flow-normalize">Normalize By Source</label>
+                </div>
+                <div class="filter-group filter-inline-checkbox">
+                    <input type="checkbox" id="flow-labels" checked>
+                    <label for="flow-labels">Show Flow Labels</label>
+                </div>
+                <button id="toggle-heatmap">Toggle Heatmap</button>
+                <button id="clear-aoi" class="btn-danger">Clear Regions</button>
+            </div>
+        </header>
+
+        <main class="dashboard-grid">
+            <!-- Top Left: Spatial View (Scatter/Heatmap/Brush) -->
+            <section class="spatial-card glass-panel">
+                <div class="section-header">
+                    <h2>1. Spatial Analysis <span class="help-text">Addresses: "How many areas of interest can be
+                            identified?"</span></h2>
+                    <p class="description">
+                        Toggle the Heatmap to reveal hotspots. Click and drag your mouse on the screen to draw
+                        <b>Regions of Interest (AOIs)</b> over dense areas. Scatter points reflect the active time
+                        window.
+                    </p>
+                </div>
+                <div id="spatial-container"></div>
+            </section>
+
+            <!-- Top Right: Transitions/Flow View -->
+            <section class="flow-card glass-panel">
+                <div class="section-header">
+                    <h2>2. Region Transitions <span class="help-text">Addresses: "What are the frequent transitions? How
+                            do they change?"</span></h2>
+                    <p class="description">
+                        Shows directed gaze shifts between your drawn regions. Set a narrow Time Window in the header
+                        (e.g., 10s to 30s) to see how patterns differ during specific stages of analysis.
+                    </p>
+                </div>
+                <div id="flow-container"></div>
+                <div id="flow-stats" class="flow-stats"></div>
+            </section>
+
+            <!-- Bottom: Temporal View (Timeline and Slider) -->
+            <section class="temporal-card glass-panel">
+                <div class="temporal-header">
+                    <h2>3. Temporal Frequency Timeline <span class="help-text">Addresses: "How many are heavily used and
+                            when?" & "Which are only used for part of the analysis?"</span></h2>
+                    <p class="description" style="margin-bottom:0;">
+                        This chart counts total fixations globally per region in 10-second segments. The active time
+                        window you configure is highlighted above.
+                    </p>
+                </div>
+                <div id="timeline-container"></div>
+            </section>
+        </main>
+    </div>
+
+</body>
+
+</html>
