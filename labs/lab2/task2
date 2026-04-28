@@ -1,0 +1,75 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import nltk
+from nltk.corpus import stopwords
+import string
+import os
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.decomposition import LatentDirichletAllocation
+
+# IMPORT OCH INLÄSNING 
+script_dir = os.path.dirname(os.path.abspath(__file__))
+csv_path = os.path.join(script_dir, 'TNM098-MC3-2011.csv')
+
+try:
+    # Vi använder sep=';' eftersom filen är semikolon-separerad
+    df = pd.read_csv(csv_path, sep=';', on_bad_lines='skip', encoding='utf-8')
+    
+    # Rensa bort eventuella osynliga mellanslag i kolumnnamnen
+    df.columns = [col.strip() for col in df.columns]
+    
+    if 'Date' in df.columns:
+        df['Date'] = pd.to_datetime(df['Date']) # Konvertera till datumformat 
+        print(f"Lyckades ladda {len(df)} nyhetsrapporter!")
+    else:
+        print(f"FEL: Kolumnen 'Date' saknas. Hittade: {df.columns.tolist()}")
+        exit()
+except Exception as e:
+    print(f"Ett fel uppstod vid inläsning: {e}")
+    exit()
+
+# PRE-PROCESSING
+nltk.download('stopwords', quiet=True)
+nltk.download('punkt', quiet=True)
+nltk.download('punkt_tab', quiet=True) # Lägg till denna rad!
+stop_words = set(stopwords.words('english'))
+
+def clean_text(text):
+    text = str(text).lower() # Allt till lowercase 
+    text = "".join([char for char in text if char not in string.punctuation]) # Ta bort punktuering 
+    tokens = nltk.word_tokenize(text) # Tokenisera 
+    return " ".join([word for word in tokens if word not in stop_words]) # Ta bort stop words 
+
+print("Städar texten...")
+df['Clean_Text'] = df['Content'].apply(clean_text)
+
+# TEMPORAL ANALYS OCH FILTRERING 
+# Ofiltrerad distribution 
+daily_counts = df.groupby(df['Date'].dt.date).size()
+
+# Filtrera baserat på relevanta nyckelord
+keywords = ['threat', 'terrorism', 'dead', 'attack', 'explosion', 'bomb', 'vastopolis']
+df_filtered = df[df['Clean_Text'].str.contains('|'.join(keywords))].copy()
+daily_filtered_counts = df_filtered.groupby(df_filtered['Date'].dt.date).size()
+
+# VISUELL JÄMFÖRELSE 
+plt.figure(figsize=(12, 6))
+plt.plot(daily_counts.index, daily_counts.values, label='Unfiltered Distribution', alpha=0.3, color='gray') 
+plt.plot(daily_filtered_counts.index, daily_filtered_counts.values, label='Filtered (Relevant) Distribution', color='red')
+plt.title('Temporal Distribution: Unfiltered vs Filtered News Reports')
+plt.legend()
+plt.show()
+
+#  TOPIC MODELLING - LDA
+print("\nBygger topic model (LDA)...")
+vectorizer = CountVectorizer(max_df=0.95, min_df=2, stop_words='english')
+dtm = vectorizer.fit_transform(df_filtered['Clean_Text']) # Skapa document-term matrix 
+
+lda = LatentDirichletAllocation(n_components=5, random_state=42) # Build topic model
+lda.fit(dtm)
+
+# Display topic related words 
+words = vectorizer.get_feature_names_out()
+for i, topic in enumerate(lda.components_):
+    print(f"\nTopic #{i+1}:")
+    print([words[index] for index in topic.argsort()[-10:]])
