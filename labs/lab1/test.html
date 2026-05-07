@@ -8,44 +8,42 @@
         #controls { 
             background: white; padding: 15px; border-radius: 8px; 
             box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
-            width: 500px; margin: 0 auto 20px auto; text-align: center;
+            width: 600px; margin: 0 auto 20px auto; text-align: center;
         }
-        .view-container { 
-            display: flex; flex-direction: row; justify-content: center; 
-            gap: 15px; overflow-x: auto; padding-bottom: 20px;
-        }
+        .view-container { display: flex; justify-content: center; padding-bottom: 20px; }
         .chart-wrapper { 
             background: white; border-radius: 8px; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.08); 
-            cursor: move; /* Indicates the window is draggable */
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+            cursor: move; 
         }
-        .fixation { fill: #ff4500; opacity: 0.6; stroke: #fff; stroke-width: 0.3px; }
-        .path-line { fill: none; stroke: #4682b4; stroke-width: 1.2px; opacity: 0.4; }
-        .axis-label { font-size: 13px; fill: #444; font-weight: bold; pointer-events: none; }
-        input[type=range] { width: 100%; }
-        .zoom-rect { fill: none; pointer-events: all; }
+        .fixation { fill: #ff4500; opacity: 0.6; stroke: #fff; stroke-width: 0.5px; }
+        .path-line { fill: none; stroke: #4682b4; stroke-width: 1.5px; opacity: 0.4; }
+        .axis-label { font-size: 14px; fill: #444; font-weight: bold; pointer-events: none; }
+        input[type=range] { width: 100%; cursor: pointer; }
     </style>
 </head>
 <body>
-    <h2>Advanced Visual Data Analysis: Lab 1</h2>
+    <h2>Advanced Visual Data Analysis: Spatial Gaze Map</h2>
     
     <div id="controls">
         <label><strong>Time Progress:</strong> <span id="time-val">0</span> $ms$</label>
         <input type="range" id="time-slider">
-        <p style="font-size: 11px; color: #666; margin-top: 5px;">Use Mouse Wheel to Zoom | Click & Drag to Pan</p>
+        <p style="font-size: 12px; color: #666; margin-top: 5px;">
+            Scroll to Zoom | Drag to Pan
+        </p>
     </div>
 
     <div class="view-container">
         <div class="chart-wrapper" id="xy-view"></div>
-        <div class="chart-wrapper" id="tx-view"></div>
-        <div class="chart-wrapper" id="ty-view"></div>
     </div>
 
     <script>
-        const margin = {top: 40, right: 30, bottom: 50, left: 65},
-              size = 450, // Uniform size for horizontal layout
+        const margin = {top: 50, right: 50, bottom: 60, left: 80},
+              size = 850, 
               innerWidth = size - margin.left - margin.right,
               innerHeight = size - margin.top - margin.bottom;
+
+        let currentMaxTime = 0;
 
         d3.tsv("EyeTrack-raw.tsv").then(data => {
             data.forEach(d => {
@@ -59,92 +57,68 @@
             const xExt = d3.extent(data, d => d.x);
             const yExt = d3.extent(data, d => d.y);
 
-            const scales = {
-                x: d3.scaleLinear().domain(xExt).range([0, innerWidth]).nice(),
-                y: d3.scaleLinear().domain(yExt).range([innerHeight, 0]).nice(),
-                t: d3.scaleLinear().domain(tExt).range([0, innerWidth]).nice()
-            };
+            const xScale = d3.scaleLinear().domain(xExt).range([0, innerWidth]).nice();
+            const yScale = d3.scaleLinear().domain(yExt).range([innerHeight, 0]).nice();
 
             d3.select("#time-slider")
                 .attr("min", tExt[0]).attr("max", tExt[1])
                 .attr("value", tExt[1])
                 .on("input", function() { update(+this.value); });
 
-            let currentMaxTime = tExt[1];
+            const svg = d3.select("#xy-view").append("svg")
+                .attr("width", size).attr("height", size);
+            
+            const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
-            function createView(id, title, xKey, yKey, xLab, yLab) {
-                const svg = d3.select(id).append("svg")
-                    .attr("width", size).attr("height", size);
+            // Clip path to keep points within bounds during zoom
+            svg.append("defs").append("clipPath").attr("id", "clip")
+               .append("rect").attr("width", innerWidth).attr("height", innerHeight);
+
+            const viewG = g.append("g").attr("clip-path", "url(#clip)");
+            const pathEl = viewG.append("path").attr("class", "path-line");
+            const dotsG = viewG.append("g");
+
+            const xAxisG = g.append("g").attr("transform", `translate(0,${innerHeight})`);
+            const yAxisG = g.append("g");
+            
+            // Labels
+            g.append("text").attr("x", innerWidth/2).attr("y", -20).attr("text-anchor", "middle").style("font-size", "20px").style("font-weight", "bold").text("Spatial Distribution of Fixations");
+            g.append("text").attr("x", innerWidth/2).attr("y", innerHeight + 45).attr("text-anchor", "middle").attr("class", "axis-label").text("X-Coordinate (Pixels)");
+            g.append("text").attr("transform", "rotate(-90)").attr("y", -60).attr("x", -innerHeight/2).attr("text-anchor", "middle").attr("class", "axis-label").text("Y-Coordinate (Pixels)");
+
+            const zoom = d3.zoom()
+                .scaleExtent([0.1, 20])
+                .on("zoom", (event) => render(event.transform));
+
+            svg.call(zoom);
+
+            function render(transform) {
+                const newX = transform.rescaleX(xScale);
+                const newY = transform.rescaleY(yScale);
+
+                xAxisG.call(d3.axisBottom(newX));
+                yAxisG.call(d3.axisLeft(newY));
+
+                const filtered = data.filter(d => d.t <= currentMaxTime);
                 
-                const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
-
-                // Clip path so points don't spill outside the axis during zoom
-                const clipId = `clip-${id.replace('#','')}`;
-                svg.append("defs").append("clipPath").attr("id", clipId)
-                   .append("rect").attr("width", innerWidth).attr("height", innerHeight);
-
-                const viewG = g.append("g").attr("clip-path", `url(#${clipId})`);
-                const pathEl = viewG.append("path").attr("class", "path-line");
-                const dotsG = viewG.append("g");
-
-                // Axes
-                const xAxisG = g.append("g").attr("transform", `translate(0,${innerHeight})`);
-                const yAxisG = g.append("g");
+                pathEl.attr("d", d3.line().x(d => newX(d.x)).y(d => newY(d.y))(filtered));
                 
-                // Labels
-                g.append("text").attr("x", innerWidth/2).attr("y", -15).attr("text-anchor", "middle").style("font-size", "16px").text(title);
-                g.append("text").attr("x", innerWidth/2).attr("y", innerHeight + 40).attr("text-anchor", "middle").attr("class", "axis-label").text(xLab);
-                g.append("text").attr("transform", "rotate(-90)").attr("y", -50).attr("x", -innerHeight/2).attr("text-anchor", "middle").attr("class", "axis-label").text(yLab);
+                const circles = dotsG.selectAll("circle").data(filtered, d => d.FixationIndex);
+                
+                circles.enter().append("circle")
+                    .attr("class", "fixation")
+                    .attr("r", d => Math.sqrt(d.dur) / 1.2) // Scaled for better visibility
+                    .merge(circles)
+                    .attr("cx", d => newX(d.x))
+                    .attr("cy", d => newY(d.y));
 
-                // Zoom functionality
-                const zoom = d3.zoom()
-                    .scaleExtent([0.5, 20]) // Zoom range
-                    .on("zoom", (event) => {
-                        const newXScale = event.transform.rescaleX(scales[xKey]);
-                        const newYScale = event.transform.rescaleY(scales[yKey]);
-
-                        xAxisG.call(d3.axisBottom(newXScale).ticks(6));
-                        yAxisG.call(d3.axisLeft(newYScale).ticks(6));
-
-                        // Recalculate positions based on zoom
-                        const filtered = data.filter(d => d.t <= currentMaxTime);
-                        pathEl.attr("d", d3.line().x(d => newXScale(d[xKey])).y(d => newYScale(d[yKey]))(filtered));
-                        dotsG.selectAll("circle")
-                             .attr("cx", d => newXScale(d[xKey]))
-                             .attr("cy", d => newYScale(d[yKey]));
-                    });
-
-                svg.call(zoom);
-
-                return { pathEl, dotsG, xAxisG, yAxisG, xKey, yKey };
+                circles.exit().remove();
             }
-
-            const views = [
-                createView("#xy-view", "Spatial (X vs Y)", "x", "y", "X (px)", "Y (px)"),
-                createView("#tx-view", "Temporal (T vs X)", "t", "x", "Time (ms)", "X (px)"),
-                createView("#ty-view", "Temporal (T vs Y)", "t", "y", "Time (ms)", "Y (px)")
-            ];
 
             function update(maxTime) {
                 currentMaxTime = maxTime;
                 d3.select("#time-val").text(maxTime);
-                const filtered = data.filter(d => d.t <= maxTime);
-
-                views.forEach(v => {
-                    const lineGen = d3.line().x(d => scales[v.xKey](d[v.xKey])).y(d => scales[v.yKey](d[v.yKey]));
-                    v.pathEl.datum(filtered).attr("d", lineGen);
-
-                    const circles = v.dotsG.selectAll("circle").data(filtered, d => d.FixationIndex);
-                    
-                    circles.enter().append("circle")
-                        .attr("class", "fixation")
-                        .attr("r", d => Math.sqrt(d.dur) / 2)
-                        .merge(circles)
-                        .attr("cx", d => scales[v.xKey](d[v.xKey]))
-                        .attr("cy", d => scales[v.yKey](d[v.yKey]));
-
-                    circles.exit().remove();
-                });
+                render(d3.zoomTransform(svg.node()));
             }
 
             update(tExt[1]);
