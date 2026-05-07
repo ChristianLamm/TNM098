@@ -1,8 +1,8 @@
 Feature vector comparison (report-ready text):
 I represented each image with a hybrid feature vector made of three parts: color content, radial color/luminance structure, and edge orientation structure.
-Color content was captured with an RGB histogram (analysis_task1.py:66).
-Spatial color/luminance structure was captured by radial statistics around one center anchor and two off-center anchors (analysis_task1.py:79, analysis_task1.py:83-86).
-Edge structure was captured with a gradient-orientation histogram weighted by edge magnitude (analysis_task1.py:116, analysis_task1.py:117, analysis_task1.py:121).
+Color content is a global summary of which colors appear, regardless of where they occur. I captured it with an RGB histogram that counts how many pixels fall into each color bin (analysis_task1.py:66).
+Radial color/luminance structure is a coarse spatial descriptor: for several anchor points (one centered and two off-center), I divide the image into concentric rings and compute mean color, luminance, and saturation per ring. This retains where colors and brightness tend to sit, without needing exact pixel positions (analysis_task1.py:79, analysis_task1.py:83-86).
+Edge orientation structure describes the dominant directions of intensity change. I computed image gradients, binned edge orientations into a histogram, and weighted each bin by edge magnitude so stronger edges contribute more (analysis_task1.py:116, analysis_task1.py:117, analysis_task1.py:121).
 Each feature group was normalized before fusion (analysis_task1.py:129).
 I then fused groups with weights color/radial/edge = 0.4/0.3/0.3 (analysis_task1.py:157).
 Similarity was computed with cosine distance to produce the full 12x12 matrix (analysis_task1.py:171, analysis_task1.py:247), and then I ranked the other 11 images against the chosen reference (analysis_task1.py:183, analysis_task1.py:248).

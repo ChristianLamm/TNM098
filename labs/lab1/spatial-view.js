@@ -9,7 +9,8 @@ export class SpatialView {
         this.onRegionsChange = onRegionsChange;
         
         this.regions = [];
-        this.showHeatmap = false;
+        this.showHeatmap = true;
+        this.lastActiveData = [];
         
         this.colorScale = d3.scaleOrdinal(d3.schemeCategory10);
 
@@ -26,7 +27,7 @@ export class SpatialView {
             .style('background', '#1e293b') // Dark background representing screen off
             .style('border-radius', '8px');
 
-        this.heatmapGroup = this.svg.append('g').attr('class', 'heatmap-layer').style('display', 'none');
+        this.heatmapGroup = this.svg.append('g').attr('class', 'heatmap-layer');
         this.scatterGroup = this.svg.append('g').attr('class', 'scatter-layer');
         this.regionsGroup = this.svg.append('g').attr('class', 'regions-layer');
         
@@ -43,6 +44,7 @@ export class SpatialView {
     render(data, activeTimeStart = 0, activeTimeEnd = Infinity) {
         this.currentData = data;
         const activeData = data.filter(d => d.relativeTime >= activeTimeStart && d.relativeTime <= activeTimeEnd);
+        this.lastActiveData = activeData;
 
         // Scales
         const rScale = d3.scaleSqrt()
@@ -72,15 +74,17 @@ export class SpatialView {
 
         // Heatmap
         this.renderHeatmap(activeData);
-        
+
         // Redraw regions 
         this.renderRegions();
     }
 
     renderHeatmap(data) {
         this.heatmapGroup.selectAll('*').remove();
+        this.heatmapGroup.style('display', this.showHeatmap ? 'block' : 'none');
+        this.scatterGroup.style('opacity', this.showHeatmap ? 0.35 : 1);
 
-        if (data.length === 0) return;
+        if (!this.showHeatmap || data.length === 0) return;
 
         const densityData = contourDensity()
             .x(d => d.x)
@@ -90,7 +94,6 @@ export class SpatialView {
             .thresholds(20)
             (data);
 
-        // Color scale for density
         const color = d3.scaleSequential(d3.interpolateInferno)
             .domain([0, d3.max(densityData, d => d.value)]);
 
@@ -105,8 +108,7 @@ export class SpatialView {
 
     toggleHeatmap() {
         this.showHeatmap = !this.showHeatmap;
-        this.heatmapGroup.style('display', this.showHeatmap ? 'block' : 'none');
-        this.scatterGroup.style('opacity', this.showHeatmap ? 0.3 : 1);
+        this.renderHeatmap(this.lastActiveData);
     }
 
     brushEnded(event) {

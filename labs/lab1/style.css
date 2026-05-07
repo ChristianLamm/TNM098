@@ -136,10 +136,6 @@ p {
   font-size: 0.9rem;
 }
 
-.filter-group-wide {
-  min-width: 280px;
-}
-
 .styled-input {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -148,21 +144,6 @@ p {
   border-radius: 6px;
   width: 80px;
   font-family: monospace;
-}
-
-.styled-select {
-  width: auto;
-  min-width: 160px;
-  font-family: var(--font-main);
-}
-
-.filter-inline-checkbox {
-  gap: 6px;
-}
-
-.filter-inline-checkbox input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
 }
 
 .btn-danger {
@@ -202,7 +183,7 @@ button:active {
   border-radius: 3px;
   background: rgba(255, 255, 255, 0.1);
   outline: none;
-  min-width: 120px;
+  min-width: 140px;
 }
 
 .styled-slider::-webkit-slider-thumb {
@@ -215,6 +196,7 @@ button:active {
   cursor: pointer;
   box-shadow: 0 0 8px var(--accent-blue);
 }
+
 
 /* Typography Extensions */
 .section-header {
@@ -245,13 +227,6 @@ button:active {
   align-items: center;
 }
 
-#current-time-display {
-  font-family: monospace;
-  font-size: 1.1rem;
-  background: rgba(0,0,0,0.3);
-  padding: 4px 12px;
-  border-radius: 4px;
-}
 
 /* SVG D3 Overrides */
 svg {
@@ -275,17 +250,3 @@ text {
   font-family: var(--font-main);
 }
 
-.flow-stats {
-  margin-top: 12px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--glass-border);
-  background: rgba(0, 0, 0, 0.18);
-  color: var(--text-secondary);
-  font-size: 0.88rem;
-  line-height: 1.4;
-}
-
-.flow-stats strong {
-  color: var(--text-primary);
-}
