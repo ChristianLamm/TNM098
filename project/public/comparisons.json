@@ -1,0 +1,152 @@
+{
+    "1.mp3": {
+        "bestCall": "345559",
+        "bestCallScore": 106579.47079144159,
+        "worstCall": "182663",
+        "worstCallScore": 876734.8255516426,
+        "bestSong": "364567",
+        "bestSongScore": 132456.61512118854,
+        "worstSong": "149220",
+        "worstSongScore": 950464.1046279151
+    },
+    "10.mp3": {
+        "bestCall": "383446",
+        "bestCallScore": 111493.23202785163,
+        "worstCall": "11505",
+        "worstCallScore": 724545.9075493802,
+        "bestSong": "34861",
+        "bestSongScore": 105920.62601060158,
+        "worstSong": "149220",
+        "worstSongScore": 1087186.6995385925
+    },
+    "11.mp3": {
+        "bestCall": "162565",
+        "bestCallScore": 79719.99574214038,
+        "worstCall": "237009",
+        "worstCallScore": 1234367.744944835,
+        "bestSong": "34861",
+        "bestSongScore": 86570.82163891579,
+        "worstSong": "237009",
+        "worstSongScore": 1234367.744944835
+    },
+    "12.mp3": {
+        "bestCall": "345555",
+        "bestCallScore": 108577.42082978145,
+        "worstCall": "225347",
+        "worstCallScore": 716859.362762913,
+        "bestSong": "345553",
+        "bestSongScore": 117972.88082088935,
+        "worstSong": "149220",
+        "worstSongScore": 1111457.9871292782
+    },
+    "13.mp3": {
+        "bestCall": "345558",
+        "bestCallScore": 67261.83271466788,
+        "worstCall": "237009",
+        "worstCallScore": 786149.8004857841,
+        "bestSong": "325274",
+        "bestSongScore": 53400.69524446256,
+        "worstSong": "149220",
+        "worstSongScore": 1101582.1845291506
+    },
+    "14.mp3": {
+        "bestCall": "351273",
+        "bestCallScore": 193723.0643156714,
+        "worstCall": "237009",
+        "worstCallScore": 938753.7170423835,
+        "bestSong": "162563",
+        "bestSongScore": 180058.43388071307,
+        "worstSong": "174364",
+        "worstSongScore": 997309.4384441867
+    },
+    "15.mp3": {
+        "bestCall": "162566",
+        "bestCallScore": 74795.3541248945,
+        "worstCall": "237009",
+        "worstCallScore": 822481.8137659405,
+        "bestSong": "344091",
+        "bestSongScore": 85805.25210728716,
+        "worstSong": "149220",
+        "worstSongScore": 946880.4498658545
+    },
+    "2.mp3": {
+        "bestCall": "383446",
+        "bestCallScore": 161285.54426521732,
+        "worstCall": "237009",
+        "worstCallScore": 843094.7999330426,
+        "bestSong": "34861",
+        "bestSongScore": 144737.77442813176,
+        "worstSong": "149220",
+        "worstSongScore": 1035468.3111981152
+    },
+    "3.mp3": {
+        "bestCall": "339832",
+        "bestCallScore": 214070.10378609673,
+        "worstCall": "11505",
+        "worstCallScore": 1089703.8910111983,
+        "bestSong": "162563",
+        "bestSongScore": 205224.5658812781,
+        "worstSong": "174364",
+        "worstSongScore": 1130529.030157763
+    },
+    "4.mp3": {
+        "bestCall": "345555",
+        "bestCallScore": 141127.54339257767,
+        "worstCall": "11505",
+        "worstCallScore": 660152.1631218555,
+        "bestSong": "34861",
+        "bestSongScore": 135975.4705850239,
+        "worstSong": "149220",
+        "worstSongScore": 929489.6076510573
+    },
+    "5.mp3": {
+        "bestCall": "232913",
+        "bestCallScore": 77500.67871072107,
+        "worstCall": "237009",
+        "worstCallScore": 573716.6684188454,
+        "bestSong": "325274",
+        "bestSongScore": 84212.54739454348,
+        "worstSong": "149220",
+        "worstSongScore": 786014.557261621
+    },
+    "6.mp3": {
+        "bestCall": "345558",
+        "bestCallScore": 265966.05747521523,
+        "worstCall": "11505",
+        "worstCallScore": 1460760.1950658106,
+        "bestSong": "325274",
+        "bestSongScore": 269821.8180740415,
+        "worstSong": "288915",
+        "worstSongScore": 1241357.2276594427
+    },
+    "7.mp3": {
+        "bestCall": "162568",
+        "bestCallScore": 106430.29863590207,
+        "worstCall": "237009",
+        "worstCallScore": 995023.5155756905,
+        "bestSong": "134755",
+        "bestSongScore": 115345.46214082878,
+        "worstSong": "149220",
+        "worstSongScore": 1074177.9923435468
+    },
+    "8.mp3": {
+        "bestCall": "368493",
+        "bestCallScore": 143605.0106444595,
+        "worstCall": "237009",
+        "worstCallScore": 1062842.2973603795,
+        "bestSong": "164501",
+        "bestSongScore": 141295.70147956692,
+        "worstSong": "174364",
+        "worstSongScore": 1173689.6648803505
+    },
+    "9.mp3": {
+        "bestCall": "368493",
+        "bestCallScore": 147387.14677067072,
+        "worstCall": "237009",
+        "worstCallScore": 976240.9703239202,
+        "bestSong": "162563",
+        "bestSongScore": 132620.1686651712,
+        "worstSong": "174364",
+        "worstSongScore": 999696.2851174247
+    }
+}

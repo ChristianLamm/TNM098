@@ -24,3 +24,11 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.slider-thumb-pointer::-webkit-slider-thumb {
+  pointer-events: auto;
+}
+.slider-thumb-pointer::-moz-range-thumb {
+  pointer-events: auto;
+}
+
