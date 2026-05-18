@@ -31,7 +31,12 @@ function shapeFor(type: string) {
 
 export default function MapDashboard() {
   const svgRef = useRef<SVGSVGElement>(null);
-  const gRef = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null);
+  const gRef = useRef<d3.Selection<
+    SVGGElement,
+    unknown,
+    null,
+    undefined
+  > | null>(null);
   const colorRef = useRef<d3.ScaleOrdinal<string, string> | null>(null);
 
   const [data, setData] = useState<BirdData[]>([]);
@@ -41,9 +46,16 @@ export default function MapDashboard() {
   const [endIdx, setEndIdx] = useState(0);
   const [selSpecies, setSelSpecies] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<"scatter" | "heatmap">("scatter");
-  const [typeFilter, setTypeFilter] = useState<"all" | "call" | "song" | "both">("all");
+  const [typeFilter, setTypeFilter] = useState<
+    "all" | "call" | "song" | "both"
+  >("all");
   const [playing, setPlaying] = useState(false);
   const [tooltip, setTooltip] = useState<Tooltip>(null);
+
+  // för sliders
+  const maxIdx = months.length - 1;
+  const minPercent = maxIdx > 0 ? (startIdx / maxIdx) * 100 : 0;
+  const maxPercent = maxIdx > 0 ? (endIdx / maxIdx) * 100 : 0;
 
   // O(1) month index lookup
   const monthMap = useMemo(() => {
@@ -55,7 +67,7 @@ export default function MapDashboard() {
   // Color scale derived for React JSX (sidebar color dots)
   const colorScale = useMemo(
     () => d3.scaleOrdinal<string>(d3.schemeCategory10).domain(species),
-    [species]
+    [species],
   );
 
   // Visible sighting count for display
@@ -70,7 +82,7 @@ export default function MapDashboard() {
           (typeFilter === "all" || d.Type === typeFilter)
         );
       }).length,
-    [data, monthMap, startIdx, endIdx, selSpecies, typeFilter]
+    [data, monthMap, startIdx, endIdx, selSpecies, typeFilter],
   );
 
   // Load data
@@ -109,10 +121,15 @@ export default function MapDashboard() {
     if (!data.length || !species.length || !svgRef.current) return;
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
-    svg.append("defs")
-      .append("filter").attr("id", "blur")
-      .append("feGaussianBlur").attr("stdDeviation", 4);
-    colorRef.current = d3.scaleOrdinal<string>(d3.schemeCategory10).domain(species);
+    svg
+      .append("defs")
+      .append("filter")
+      .attr("id", "blur")
+      .append("feGaussianBlur")
+      .attr("stdDeviation", 4);
+    colorRef.current = d3
+      .scaleOrdinal<string>(d3.schemeCategory10)
+      .domain(species);
     gRef.current = svg.append("g");
   }, [data, species]);
 
@@ -142,7 +159,10 @@ export default function MapDashboard() {
             enter
               .append("path")
               .attr("class", "dot")
-              .attr("transform", (d) => `translate(${xSc(d.X)},${ySc(200 - d.Y)}) scale(0)`)
+              .attr(
+                "transform",
+                (d) => `translate(${xSc(d.X)},${ySc(200 - d.Y)}) scale(0)`,
+              )
               .attr("d", (d) => sym.type(shapeFor(d.Type)).size(80)()!)
               .attr("fill", (d) => color(d.English_name))
               .attr("opacity", 0.85)
@@ -150,11 +170,21 @@ export default function MapDashboard() {
               .attr("stroke-width", 0.8)
               .style("cursor", "pointer")
               .on("mouseover", (event, d) =>
-                setTooltip({ x: (event as MouseEvent).clientX, y: (event as MouseEvent).clientY, bird: d })
+                setTooltip({
+                  x: (event as MouseEvent).clientX,
+                  y: (event as MouseEvent).clientY,
+                  bird: d,
+                }),
               )
               .on("mouseout", () => setTooltip(null))
               .call((sel) =>
-                sel.transition().duration(200).attr("transform", (d) => `translate(${xSc(d.X)},${ySc(200 - d.Y)}) scale(1)`)
+                sel
+                  .transition()
+                  .duration(200)
+                  .attr(
+                    "transform",
+                    (d) => `translate(${xSc(d.X)},${ySc(200 - d.Y)}) scale(1)`,
+                  ),
               ),
           (update) =>
             update
@@ -164,8 +194,11 @@ export default function MapDashboard() {
             exit
               .transition()
               .duration(150)
-              .attr("transform", (d) => `translate(${xSc(d.X)},${ySc(200 - d.Y)}) scale(0)`)
-              .remove()
+              .attr(
+                "transform",
+                (d) => `translate(${xSc(d.X)},${ySc(200 - d.Y)}) scale(0)`,
+              )
+              .remove(),
         );
     } else {
       g.selectAll("path.dot").remove();
@@ -184,15 +217,40 @@ export default function MapDashboard() {
               .attr("fill", "#f59e0b")
               .attr("filter", "url(#blur)")
               .style("mix-blend-mode", "multiply")
-              .call((sel) => sel.transition().duration(200).attr("r", 20).attr("opacity", 0.4)),
+              .call((sel) =>
+                sel
+                  .transition()
+                  .duration(200)
+                  .attr("r", 20)
+                  .attr("opacity", 0.4),
+              ),
           (update) => update,
-          (exit) => exit.transition().duration(150).attr("r", 0).attr("opacity", 0).remove()
+          (exit) =>
+            exit
+              .transition()
+              .duration(150)
+              .attr("r", 0)
+              .attr("opacity", 0)
+              .remove(),
         );
     }
-  }, [data, months, monthMap, startIdx, endIdx, selSpecies, viewMode, typeFilter]);
+  }, [
+    data,
+    months,
+    monthMap,
+    startIdx,
+    endIdx,
+    selSpecies,
+    viewMode,
+    typeFilter,
+  ]);
 
   if (!months.length)
-    return <div className="p-8 text-center text-stone-500 text-xl">Loading Spatiotemporal Data...</div>;
+    return (
+      <div className="p-8 text-center text-stone-500 text-xl">
+        Loading Spatiotemporal Data...
+      </div>
+    );
 
   return (
     <>
@@ -204,7 +262,8 @@ export default function MapDashboard() {
         >
           <p className="font-semibold">{tooltip.bird.English_name}</p>
           <p className="text-stone-300">
-            {tooltip.bird.YearMonth} · <span className="capitalize">{tooltip.bird.Type}</span>
+            {tooltip.bird.YearMonth} ·{" "}
+            <span className="capitalize">{tooltip.bird.Type}</span>
           </p>
         </div>
       )}
@@ -267,7 +326,9 @@ export default function MapDashboard() {
           </div>
 
           <div>
-            <span className="text-sm font-semibold text-stone-700 block mb-2">Vocalization Type</span>
+            <span className="text-sm font-semibold text-stone-700 block mb-2">
+              Vocalization Type
+            </span>
             <div className="grid grid-cols-2 gap-1.5">
               {(
                 [
@@ -293,7 +354,9 @@ export default function MapDashboard() {
           </div>
 
           <div>
-            <span className="text-sm font-semibold text-stone-700 block mb-2">View Mode</span>
+            <span className="text-sm font-semibold text-stone-700 block mb-2">
+              View Mode
+            </span>
             <div className="flex gap-2">
               <button
                 onClick={() => setViewMode("scatter")}
@@ -320,7 +383,9 @@ export default function MapDashboard() {
 
           {viewMode === "scatter" && (
             <div className="border-t border-stone-100 pt-3 space-y-1.5">
-              <span className="text-xs font-medium text-stone-600">Marker shapes</span>
+              <span className="text-xs font-medium text-stone-600">
+                Marker shapes
+              </span>
               <div className="flex gap-4 text-xs text-stone-500">
                 <span className="flex items-center gap-1.5">
                   <svg width="10" height="10">
@@ -348,11 +413,16 @@ export default function MapDashboard() {
         {/* Main Map Area */}
         <div className="flex-1 flex flex-col gap-4 bg-white p-5 rounded-xl shadow-lg border border-stone-200 min-w-0">
           <div className="flex justify-between items-center gap-3 flex-wrap">
-            <h2 className="text-xl font-bold text-stone-900">Geospatial Distribution</h2>
+            <h2 className="text-xl font-bold text-stone-900">
+              Geospatial Distribution
+            </h2>
             <div className="flex items-center gap-3">
-              <span className="text-stone-400 text-sm">{sightingCount.toLocaleString()} sightings</span>
+              <span className="text-stone-400 text-sm">
+                {sightingCount.toLocaleString()} sightings
+              </span>
               <span className="text-stone-700 font-mono font-bold bg-stone-100 px-3 py-1 rounded-md border border-stone-200 text-sm whitespace-nowrap">
-                {months[startIdx]} <span className="text-stone-400">→</span> {months[endIdx]}
+                {months[startIdx]} <span className="text-stone-400">→</span>{" "}
+                {months[endIdx]}
               </span>
             </div>
           </div>
@@ -364,7 +434,11 @@ export default function MapDashboard() {
               className="absolute inset-0 w-full h-full object-cover opacity-80"
               style={{ imageRendering: "pixelated" }}
             />
-            <svg ref={svgRef} viewBox="0 0 800 800" className="absolute inset-0 w-full h-full z-10" />
+            <svg
+              ref={svgRef}
+              viewBox="0 0 800 800"
+              className="absolute inset-0 w-full h-full z-10"
+            />
           </div>
 
           {/* Timeline controls */}
@@ -373,51 +447,96 @@ export default function MapDashboard() {
               <button
                 onClick={() => {
                   // If at the end, reset before playing
-                  if (!playing && endIdx >= months.length - 1) setEndIdx(startIdx);
+                  if (!playing && endIdx >= months.length - 1)
+                    setEndIdx(startIdx);
                   setPlaying((p) => !p);
                 }}
                 className="w-9 h-9 flex items-center justify-center bg-indigo-600 hover:bg-indigo-500 text-white rounded-full transition-colors shrink-0 shadow-sm"
                 title={playing ? "Pause" : "Animate timeline"}
               >
                 {playing ? (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
                     <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
                   </svg>
                 ) : (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
                     <path d="M8 5v14l11-7z" />
                   </svg>
                 )}
               </button>
 
-              <div className="flex flex-col flex-1 gap-2 min-w-0">
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="text-stone-500 w-8 shrink-0">From</span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={months.length - 1}
-                    value={startIdx}
-                    onChange={(e) => setStartIdx(Math.min(+e.target.value, endIdx))}
-                    className="flex-1 h-1.5 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 min-w-0"
-                  />
-                  <span className="text-stone-600 font-mono w-14 text-right shrink-0">{months[startIdx]}</span>
+              {/* Sliders */}
+              <div className="flex flex-col flex-1 gap-1 min-w-0">
+                {/* Topprad som visar nuvarande intervall */}
+                <div className="flex justify-between text-xs text-stone-500 px-1 select-none">
+                  <div>
+                    From:{" "}
+                    <span className="text-stone-600 font-mono">
+                      {months[startIdx]}
+                    </span>
+                  </div>
+                  <div>
+                    To:{" "}
+                    <span className="text-stone-600 font-mono">
+                      {months[endIdx]}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="text-stone-500 w-8 shrink-0">To</span>
+
+                {/* Själva slider-ytan där båda reglagen delar spår */}
+                <div className="relative w-full h-5 flex items-center min-w-0">
+                  {/* 1. Det gråa bakgrundsspåret */}
+                  <div className="absolute left-0 right-0 h-1.5 bg-stone-200 rounded-lg z-0" />
+
+                  {/* 2. Det färgade intervallet mellan startIdx och endIdx */}
+                  <div
+                    className="absolute h-1.5 bg-indigo-600 rounded-lg z-10"
+                    style={{
+                      left: `${minPercent}%`,
+                      right: `${100 - maxPercent}%`,
+                    }}
+                  />
+
+                  {/* 3. Från-slidern (Genomskinlig, men med synligt lila handtag) */}
                   <input
                     type="range"
                     min={0}
-                    max={months.length - 1}
-                    value={endIdx}
-                    onChange={(e) => setEndIdx(Math.max(+e.target.value, startIdx))}
-                    className="flex-1 h-1.5 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 min-w-0"
+                    max={maxIdx}
+                    value={startIdx}
+                    onChange={(e) =>
+                      setStartIdx(Math.min(+e.target.value, endIdx))
+                    }
+                    className="absolute w-full h-1.5 appearance-none bg-transparent pointer-events-none cursor-pointer z-20 min-w-0
+            [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-600 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow
+            [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-indigo-600 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:shadow"
                   />
-                  <span className="text-stone-600 font-mono w-14 text-right shrink-0">{months[endIdx]}</span>
+
+                  {/* 4. Till-slidern (Genomskinlig, men med synligt lila handtag) */}
+                  <input
+                    type="range"
+                    min={0}
+                    max={maxIdx}
+                    value={endIdx}
+                    onChange={(e) =>
+                      setEndIdx(Math.max(+e.target.value, startIdx))
+                    }
+                    className="absolute w-full h-1.5 appearance-none bg-transparent pointer-events-none cursor-pointer z-20 min-w-0
+            [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-600 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow
+            [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-indigo-600 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:shadow"
+                  />
                 </div>
               </div>
             </div>
-
           </div>
         </div>
       </div>
