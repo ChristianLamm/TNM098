@@ -4,79 +4,159 @@ import { useEffect, useMemo, useState } from "react";
 import AudioVisualizer from "./AudioVisualizer";
 
 type Prediction = {
-  species: string;
+  species:    string;
   confidence: number;
-  fid: string;
-  distance: number;
-  type: string;
+  fid:        string;
+  distance:   number;
+  type:       string;
 };
 
 type KasiosData = {
-  predictions: Prediction[];
-  bestPipitMatch: string;
-  bestPipitScore: number;
-  overallBestMatch: string;
+  predictions:        Prediction[];
+  bestPipitMatch:     string | null;
+  bestPipitScore:     number | null;
+  overallBestMatch:   string;
   overallBestSpecies: string;
 };
 
-// Sorted file keys: "1.mp3" < "2.mp3" < … < "15.mp3"
+type ClassifierMode = "ml" | "dtw";
+type CompareMode    = "pipit" | "actual";
+
 function sortKeys(keys: string[]) {
-  return [...keys].sort((a, b) => parseInt(a) - parseInt(b));
+  return [...keys].sort((a, b) => {
+    const na = parseInt(a.match(/\d+/)?.[0] ?? "0");
+    const nb = parseInt(b.match(/\d+/)?.[0] ?? "0");
+    return na - nb;
+  });
 }
 
-function fmtDtw(d: number) {
-  return (d / 1000).toFixed(1) + "k";
+function fmtScore(d: number, mode: ClassifierMode): string {
+  if (mode === "dtw") return d >= 1000 ? (d / 1000).toFixed(1) + "k" : d.toFixed(2);
+  return d.toFixed(3);
+}
+
+async function loadJson(url: string): Promise<Record<string, KasiosData> | null> {
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
 }
 
 export default function LieDetector() {
-  const [comparisons, setComparisons] = useState<Record<string, KasiosData>>({});
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [compareMode, setCompareMode] = useState<"pipit" | "actual">("pipit");
+  const [comparisonsML,  setComparisonsML]  = useState<Record<string, KasiosData>>({});
+  const [comparisonsDTW, setComparisonsDTW] = useState<Record<string, KasiosData>>({});
+  const [selectedFile,   setSelectedFile]   = useState<string | null>(null);
+  const [classifierMode, setClassifierMode] = useState<ClassifierMode>("ml");
+  const [compareMode,    setCompareMode]    = useState<CompareMode>("actual");
+  const [availableML,    setAvailableML]    = useState(false);
+  const [availableDTW,   setAvailableDTW]   = useState(false);
 
   useEffect(() => {
-    fetch("/comparisons.json")
-      .then((r) => r.json())
-      .then((data: Record<string, KasiosData>) => {
-        setComparisons(data);
-        const keys = sortKeys(Object.keys(data));
+    Promise.all([
+      loadJson("/comparisons_ml.json"),
+      loadJson("/comparisons_dtw.json"),
+    ]).then(([ml, dtw]) => {
+      if (ml)  { setComparisonsML(ml);  setAvailableML(true);  }
+      if (dtw) { setComparisonsDTW(dtw); setAvailableDTW(true); }
+
+      const initial = ml ?? dtw;
+      if (initial) {
+        const keys = sortKeys(Object.keys(initial));
         if (keys.length) setSelectedFile(keys[0]);
-      })
-      .catch((e) => console.error("Error loading comparisons", e));
+      }
+      // Default to whichever is available
+      if (ml)       setClassifierMode("ml");
+      else if (dtw) setClassifierMode("dtw");
+    });
   }, []);
 
-  const fileKeys = useMemo(() => sortKeys(Object.keys(comparisons)), [comparisons]);
+  const comparisons = classifierMode === "ml" ? comparisonsML : comparisonsDTW;
+  const fileKeys    = useMemo(() => sortKeys(Object.keys(comparisons)), [comparisons]);
 
-  if (!selectedFile || !comparisons[selectedFile])
+  // When switching classifier, keep selected file if it exists in the new dataset
+  useEffect(() => {
+    if (selectedFile && comparisons[selectedFile]) return;
+    const keys = sortKeys(Object.keys(comparisons));
+    if (keys.length) setSelectedFile(keys[0]);
+  }, [classifierMode]);
+
+  if (!availableML && !availableDTW) {
     return (
       <div className="p-8 text-center text-stone-500 text-xl">
         Loading Classifier Data…
       </div>
     );
+  }
 
-  const data = comparisons[selectedFile];
-  const top = data.predictions[0];
+  const data = selectedFile ? comparisons[selectedFile] : null;
+
+  if (!data || !selectedFile) {
+    return (
+      <div className="p-8 text-center text-stone-500">
+        {fileKeys.length === 0
+          ? "No predictions available for this classifier. Run the script first."
+          : "Select a file above."}
+      </div>
+    );
+  }
+
+  const top     = data.predictions[0];
+  const pipit   = data.predictions.find((p) => p.species === "Rose-crested Blue Pipit") ?? null;
   const isPipit = top.species === "Rose-crested Blue Pipit";
 
-  const verifiedId = compareMode === "pipit" ? data.bestPipitMatch : data.overallBestMatch;
-  const verifiedDtw =
-    compareMode === "pipit" ? data.bestPipitScore : data.predictions[0].distance;
-  const verifiedType =
-    compareMode === "pipit"
-      ? null // no type stored for pipit best match
-      : data.predictions[0].type;
+  const verifiedId  = compareMode === "pipit" ? data.bestPipitMatch  : data.overallBestMatch;
+  const verifiedDist = compareMode === "pipit" ? data.bestPipitScore  : data.predictions[0].distance;
+  const verifiedType = compareMode === "pipit" ? null                 : data.predictions[0].type;
 
-  const kasiosUrl = `/api/audio?type=kasios&filename=${selectedFile}`;
-  const verifiedUrl = `/api/audio?type=verified&id=${verifiedId}`;
+  const kasiosUrl   = `/api/audio?type=kasios&filename=${selectedFile}`;
+  const verifiedUrl = verifiedId ? `/api/audio?type=verified&id=${verifiedId}` : null;
+
+  const scoreLabel = classifierMode === "dtw" ? "DTW" : "dist";
 
   return (
-    <div className="flex flex-col gap-0 bg-stone-50 rounded-xl shadow-lg border border-stone-200 overflow-hidden mt-10">
+    <div className="flex flex-col bg-stone-50 rounded-xl shadow-lg border border-stone-200 overflow-hidden mt-10">
+
       {/* ── Header ── */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-6 py-5 bg-white border-b border-stone-200">
-        <div>
-          <h2 className="text-2xl font-bold text-stone-900">Lie Detector</h2>
-        </div>
+        <h2 className="text-2xl font-bold text-stone-900">Lie Detector</h2>
 
         <div className="flex gap-3 flex-wrap items-end">
+
+          {/* Classifier toggle */}
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider">
+              Classifier
+            </span>
+            <div className="flex bg-white border border-stone-300 rounded-lg p-0.5 shadow-sm">
+              <button
+                disabled={!availableML}
+                onClick={() => setClassifierMode("ml")}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                  classifierMode === "ml"
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "text-stone-500 hover:text-stone-900"
+                }`}
+              >
+                ML
+              </button>
+              <button
+                disabled={!availableDTW}
+                onClick={() => setClassifierMode("dtw")}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                  classifierMode === "dtw"
+                    ? "bg-violet-600 text-white shadow-sm"
+                    : "text-stone-500 hover:text-stone-900"
+                }`}
+              >
+                DTW
+              </button>
+            </div>
+          </div>
+
+          {/* File selector */}
           <div className="flex flex-col gap-1">
             <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider">
               Kasios File
@@ -87,13 +167,12 @@ export default function LieDetector() {
               className="bg-white border border-stone-300 text-stone-700 text-sm rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono shadow-sm cursor-pointer"
             >
               {fileKeys.map((f) => (
-                <option key={f} value={f}>
-                  {f}
-                </option>
+                <option key={f} value={f}>{f}</option>
               ))}
             </select>
           </div>
 
+          {/* Compare mode */}
           <div className="flex flex-col gap-1">
             <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider">
               Compare Against
@@ -113,26 +192,29 @@ export default function LieDetector() {
                 onClick={() => setCompareMode("actual")}
                 className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                   compareMode === "actual"
-                    ? "bg-indigo-600 text-white shadow-sm"
+                    ? "bg-emerald-600 text-white shadow-sm"
                     : "text-stone-500 hover:text-stone-900"
                 }`}
               >
-                Actual Species
+                Actual Match
               </button>
             </div>
           </div>
+
         </div>
       </div>
 
       {/* ── Body ── */}
       <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 p-6">
-        {/* Left panel: classifier results */}
+
+        {/* Left panel */}
         <div className="flex flex-col gap-4">
+
+          {/* Top predictions */}
           <div className="bg-white rounded-xl border border-stone-200 p-5 flex flex-col gap-4">
             <h3 className="font-semibold text-stone-700 text-sm border-b border-stone-100 pb-2">
               Top predictions
             </h3>
-
             <div className="space-y-3.5">
               {data.predictions.map((p, idx) => (
                 <div key={p.species} className="space-y-1">
@@ -161,7 +243,8 @@ export default function LieDetector() {
                     />
                   </div>
                   <p className="text-[10px] text-stone-400 font-mono">
-                    DTW {fmtDtw(p.distance)} · {p.type}
+                    {scoreLabel} {fmtScore(p.distance, classifierMode)}
+                    {p.type ? ` · ${p.type}` : ""}
                   </p>
                 </div>
               ))}
@@ -176,28 +259,70 @@ export default function LieDetector() {
                 : "bg-rose-50 border-rose-200 text-rose-700"
             }`}
           >
-            <span className="font-semibold">{isPipit ? "Likely genuine" : "Not a Pipit"}</span>
-            {!isPipit && ` — matches ${top.species} (×${(data.bestPipitScore / top.distance).toFixed(1)} worse fit)`}
+            <span className="font-semibold">
+              {isPipit ? "Likely genuine" : "Not a Pipit"}
+            </span>
+            {!isPipit && pipit && data.bestPipitScore != null && (
+              ` — matches ${top.species} (×${(data.bestPipitScore / top.distance).toFixed(1)} worse fit as Pipit)`
+            )}
           </div>
 
-          {/* DTW scores */}
+          {/* Score comparison */}
           <div className="bg-white rounded-xl border border-stone-200 p-4 text-xs space-y-1.5">
-            <div className="flex justify-between text-stone-500">
-              <span>Pipit distance</span>
-              <span className="font-mono text-stone-700">{fmtDtw(data.bestPipitScore)}</span>
-            </div>
-            <div className="flex justify-between text-stone-500">
-              <span>Actual species</span>
-              <span className="font-mono text-stone-700">{fmtDtw(top.distance)}</span>
-            </div>
-            <div className="flex justify-between border-t border-stone-100 pt-1.5 text-stone-600 font-medium">
-              <span>Ratio</span>
-              <span className="font-mono text-rose-500">×{(data.bestPipitScore / top.distance).toFixed(2)}</span>
-            </div>
+            {classifierMode === "ml" ? (
+              <>
+                <div className="flex justify-between text-stone-500">
+                  <span>Pipit confidence</span>
+                  <span className="font-mono text-stone-700">
+                    {pipit ? `${pipit.confidence.toFixed(1)}%` : "—"}
+                  </span>
+                </div>
+                <div className="flex justify-between text-stone-500">
+                  <span>Top match</span>
+                  <span className="font-mono text-stone-700">
+                    {top.confidence.toFixed(1)}%
+                  </span>
+                </div>
+                <div className="flex justify-between border-t border-stone-100 pt-1.5 text-stone-600 font-medium">
+                  <span>Gap</span>
+                  <span className={`font-mono ${isPipit ? "text-emerald-600" : "text-rose-500"}`}>
+                    {pipit
+                      ? `${(top.confidence - pipit.confidence).toFixed(1)}%`
+                      : "—"}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between text-stone-500">
+                  <span>Pipit distance</span>
+                  <span className="font-mono text-stone-700">
+                    {data.bestPipitScore != null
+                      ? fmtScore(data.bestPipitScore, "dtw")
+                      : "—"}
+                  </span>
+                </div>
+                <div className="flex justify-between text-stone-500">
+                  <span>Best match</span>
+                  <span className="font-mono text-stone-700">
+                    {fmtScore(top.distance, "dtw")}
+                  </span>
+                </div>
+                <div className="flex justify-between border-t border-stone-100 pt-1.5 text-stone-600 font-medium">
+                  <span>Ratio</span>
+                  <span className="font-mono text-rose-500">
+                    {data.bestPipitScore != null
+                      ? `×${(data.bestPipitScore / top.distance).toFixed(2)}`
+                      : "—"}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
+
         </div>
 
-        {/* Right panel: stacked spectrograms */}
+        {/* Right panel — spectrograms */}
         <div className="flex flex-col gap-4">
           <AudioVisualizer
             key={`kasios-${selectedFile}`}
@@ -207,24 +332,26 @@ export default function LieDetector() {
             type="kasios"
           />
 
-          <AudioVisualizer
-            key={`verified-${verifiedId}-${compareMode}`}
-            title={
-              compareMode === "pipit"
-                ? `Best Pipit match — ID ${verifiedId}`
-                : `Best match: ${data.overallBestSpecies} — ID ${verifiedId}`
-            }
-            subtitle={
-              compareMode === "pipit"
-                ? `Rose-crested Blue Pipit · DTW ${fmtDtw(data.bestPipitScore)}`
-                : `${data.overallBestSpecies}${verifiedType ? ` · ${verifiedType}` : ""} · DTW ${fmtDtw(verifiedDtw)}`
-            }
-            audioUrl={verifiedUrl}
-            type="verified"
-          />
+          {verifiedUrl && (
+            <AudioVisualizer
+              key={`verified-${verifiedId}-${compareMode}-${classifierMode}`}
+              title={
+                compareMode === "pipit"
+                  ? `Best Pipit match — ID ${verifiedId}`
+                  : `Best match: ${data.overallBestSpecies} — ID ${verifiedId}`
+              }
+              subtitle={
+                compareMode === "pipit"
+                  ? `Rose-crested Blue Pipit · ${scoreLabel} ${data.bestPipitScore != null ? fmtScore(data.bestPipitScore, classifierMode) : "—"}`
+                  : `${data.overallBestSpecies}${verifiedType ? ` · ${verifiedType}` : ""} · ${scoreLabel} ${verifiedDist != null ? fmtScore(verifiedDist, classifierMode) : "—"}`
+              }
+              audioUrl={verifiedUrl}
+              type="verified"
+            />
+          )}
         </div>
-      </div>
 
+      </div>
     </div>
   );
 }

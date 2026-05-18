@@ -1,0 +1,647 @@
+{
+  "1.mp3": {
+    "predictions": [
+      {
+        "species": "Bent-beak Riffraff",
+        "confidence": 34.8,
+        "fid": "171003",
+        "distance": 8.6654,
+        "type": ""
+      },
+      {
+        "species": "Orange Pine Plover",
+        "confidence": 16.7,
+        "fid": "368804",
+        "distance": 9.6151,
+        "type": ""
+      },
+      {
+        "species": "Green-tipped Scarlet Pipit",
+        "confidence": 8.2,
+        "fid": "143234",
+        "distance": 9.4176,
+        "type": ""
+      },
+      {
+        "species": "Vermillion Trillian",
+        "confidence": 5.3,
+        "fid": "367784",
+        "distance": 9.5017,
+        "type": ""
+      },
+      {
+        "species": "Broad-winged Jojo",
+        "confidence": 4.9,
+        "fid": "13689",
+        "distance": 10.1031,
+        "type": ""
+      }
+    ],
+    "bestPipitMatch": "345553",
+    "bestPipitScore": 11.5748,
+    "overallBestMatch": "171003",
+    "overallBestSpecies": "Bent-beak Riffraff"
+  },
+  "2.mp3": {
+    "predictions": [
+      {
+        "species": "Rose-crested Blue Pipit",
+        "confidence": 71.8,
+        "fid": "293914",
+        "distance": 5.6182,
+        "type": ""
+      },
+      {
+        "species": "Bombadil",
+        "confidence": 5.9,
+        "fid": "313482",
+        "distance": 9.0163,
+        "type": ""
+      },
+      {
+        "species": "Ordinary Snape",
+        "confidence": 5.4,
+        "fid": "393737",
+        "distance": 9.2761,
+        "type": ""
+      },
+      {
+        "species": "Eastern Corn Skeet",
+        "confidence": 3.5,
+        "fid": "161099",
+        "distance": 10.9236,
+        "type": ""
+      },
+      {
+        "species": "Blue-collared Zipper",
+        "confidence": 3.0,
+        "fid": "48782",
+        "distance": 9.9945,
+        "type": ""
+      }
+    ],
+    "bestPipitMatch": "293914",
+    "bestPipitScore": 5.6182,
+    "overallBestMatch": "293914",
+    "overallBestSpecies": "Rose-crested Blue Pipit"
+  },
+  "3.mp3": {
+    "predictions": [
+      {
+        "species": "Bombadil",
+        "confidence": 65.2,
+        "fid": "48651",
+        "distance": 6.333,
+        "type": ""
+      },
+      {
+        "species": "Rose-crested Blue Pipit",
+        "confidence": 10.1,
+        "fid": "89862",
+        "distance": 10.6217,
+        "type": ""
+      },
+      {
+        "species": "Qax",
+        "confidence": 6.0,
+        "fid": "11838",
+        "distance": 12.1512,
+        "type": ""
+      },
+      {
+        "species": "Darkwing Sparrow",
+        "confidence": 3.0,
+        "fid": "383538",
+        "distance": 12.5462,
+        "type": ""
+      },
+      {
+        "species": "Orange Pine Plover",
+        "confidence": 2.1,
+        "fid": "145939",
+        "distance": 14.6847,
+        "type": ""
+      }
+    ],
+    "bestPipitMatch": "89862",
+    "bestPipitScore": 10.6217,
+    "overallBestMatch": "48651",
+    "overallBestSpecies": "Bombadil"
+  },
+  "4.mp3": {
+    "predictions": [
+      {
+        "species": "Bombadil",
+        "confidence": 61.3,
+        "fid": "48651",
+        "distance": 7.7121,
+        "type": ""
+      },
+      {
+        "species": "Rose-crested Blue Pipit",
+        "confidence": 8.2,
+        "fid": "89862",
+        "distance": 12.0402,
+        "type": ""
+      },
+      {
+        "species": "Qax",
+        "confidence": 7.8,
+        "fid": "115737",
+        "distance": 12.2796,
+        "type": ""
+      },
+      {
+        "species": "Darkwing Sparrow",
+        "confidence": 3.0,
+        "fid": "239375",
+        "distance": 14.3312,
+        "type": ""
+      },
+      {
+        "species": "Orange Pine Plover",
+        "confidence": 2.6,
+        "fid": "311713",
+        "distance": 16.1294,
+        "type": ""
+      }
+    ],
+    "bestPipitMatch": "89862",
+    "bestPipitScore": 12.0402,
+    "overallBestMatch": "48651",
+    "overallBestSpecies": "Bombadil"
+  },
+  "5.mp3": {
+    "predictions": [
+      {
+        "species": "Orange Pine Plover",
+        "confidence": 21.9,
+        "fid": "97374",
+        "distance": 16.9633,
+        "type": ""
+      },
+      {
+        "species": "Scrawny Jay",
+        "confidence": 14.2,
+        "fid": "4625",
+        "distance": 14.3559,
+        "type": ""
+      },
+      {
+        "species": "Bent-beak Riffraff",
+        "confidence": 10.5,
+        "fid": "260894",
+        "distance": 17.7697,
+        "type": ""
+      },
+      {
+        "species": "Green-tipped Scarlet Pipit",
+        "confidence": 9.1,
+        "fid": "52794",
+        "distance": 18.0033,
+        "type": ""
+      },
+      {
+        "species": "Queenscoat",
+        "confidence": 8.9,
+        "fid": "78169",
+        "distance": 19.0473,
+        "type": ""
+      }
+    ],
+    "bestPipitMatch": "160293",
+    "bestPipitScore": 19.0559,
+    "overallBestMatch": "97374",
+    "overallBestSpecies": "Orange Pine Plover"
+  },
+  "6.mp3": {
+    "predictions": [
+      {
+        "species": "Green-tipped Scarlet Pipit",
+        "confidence": 78.7,
+        "fid": "17578",
+        "distance": 8.1736,
+        "type": ""
+      },
+      {
+        "species": "Bent-beak Riffraff",
+        "confidence": 7.1,
+        "fid": "30317",
+        "distance": 11.2577,
+        "type": ""
+      },
+      {
+        "species": "Lesser Birchbeere",
+        "confidence": 2.9,
+        "fid": "183593",
+        "distance": 11.9575,
+        "type": ""
+      },
+      {
+        "species": "Eastern Corn Skeet",
+        "confidence": 2.4,
+        "fid": "14857",
+        "distance": 12.0798,
+        "type": ""
+      },
+      {
+        "species": "Orange Pine Plover",
+        "confidence": 2.0,
+        "fid": "308401",
+        "distance": 13.5572,
+        "type": ""
+      }
+    ],
+    "bestPipitMatch": "364567",
+    "bestPipitScore": 13.9081,
+    "overallBestMatch": "17578",
+    "overallBestSpecies": "Green-tipped Scarlet Pipit"
+  },
+  "7.mp3": {
+    "predictions": [
+      {
+        "species": "Qax",
+        "confidence": 26.8,
+        "fid": "115737",
+        "distance": 13.3867,
+        "type": ""
+      },
+      {
+        "species": "Scrawny Jay",
+        "confidence": 14.4,
+        "fid": "153850",
+        "distance": 15.0121,
+        "type": ""
+      },
+      {
+        "species": "Broad-winged Jojo",
+        "confidence": 11.8,
+        "fid": "33563",
+        "distance": 15.3082,
+        "type": ""
+      },
+      {
+        "species": "Orange Pine Plover",
+        "confidence": 8.7,
+        "fid": "172590",
+        "distance": 17.5797,
+        "type": ""
+      },
+      {
+        "species": "Bombadil",
+        "confidence": 5.6,
+        "fid": "59146",
+        "distance": 15.5675,
+        "type": ""
+      }
+    ],
+    "bestPipitMatch": "313073",
+    "bestPipitScore": 15.7776,
+    "overallBestMatch": "115737",
+    "overallBestSpecies": "Qax"
+  },
+  "8.mp3": {
+    "predictions": [
+      {
+        "species": "Lesser Birchbeere",
+        "confidence": 88.9,
+        "fid": "371803",
+        "distance": 9.4024,
+        "type": ""
+      },
+      {
+        "species": "Orange Pine Plover",
+        "confidence": 3.4,
+        "fid": "18383",
+        "distance": 15.9747,
+        "type": ""
+      },
+      {
+        "species": "Purple Tooting Tout",
+        "confidence": 1.8,
+        "fid": "114771",
+        "distance": 17.0776,
+        "type": ""
+      },
+      {
+        "species": "Eastern Corn Skeet",
+        "confidence": 1.4,
+        "fid": "179719",
+        "distance": 15.7906,
+        "type": ""
+      },
+      {
+        "species": "Rose-crested Blue Pipit",
+        "confidence": 1.4,
+        "fid": "35964",
+        "distance": 15.9147,
+        "type": ""
+      }
+    ],
+    "bestPipitMatch": "35964",
+    "bestPipitScore": 15.9147,
+    "overallBestMatch": "371803",
+    "overallBestSpecies": "Lesser Birchbeere"
+  },
+  "9.mp3": {
+    "predictions": [
+      {
+        "species": "Rose-crested Blue Pipit",
+        "confidence": 87.0,
+        "fid": "162564",
+        "distance": 4.8243,
+        "type": ""
+      },
+      {
+        "species": "Bombadil",
+        "confidence": 3.0,
+        "fid": "1366",
+        "distance": 10.2958,
+        "type": ""
+      },
+      {
+        "species": "Queenscoat",
+        "confidence": 1.9,
+        "fid": "390555",
+        "distance": 11.7213,
+        "type": ""
+      },
+      {
+        "species": "Qax",
+        "confidence": 1.7,
+        "fid": "84599",
+        "distance": 11.4367,
+        "type": ""
+      },
+      {
+        "species": "Eastern Corn Skeet",
+        "confidence": 1.2,
+        "fid": "124445",
+        "distance": 11.4724,
+        "type": ""
+      }
+    ],
+    "bestPipitMatch": "162564",
+    "bestPipitScore": 4.8243,
+    "overallBestMatch": "162564",
+    "overallBestSpecies": "Rose-crested Blue Pipit"
+  },
+  "10.mp3": {
+    "predictions": [
+      {
+        "species": "Orange Pine Plover",
+        "confidence": 58.5,
+        "fid": "18383",
+        "distance": 11.8411,
+        "type": ""
+      },
+      {
+        "species": "Vermillion Trillian",
+        "confidence": 9.9,
+        "fid": "1374",
+        "distance": 14.4602,
+        "type": ""
+      },
+      {
+        "species": "Qax",
+        "confidence": 9.2,
+        "fid": "211671",
+        "distance": 15.8972,
+        "type": ""
+      },
+      {
+        "species": "Rose-crested Blue Pipit",
+        "confidence": 3.8,
+        "fid": "134557",
+        "distance": 16.6307,
+        "type": ""
+      },
+      {
+        "species": "Bent-beak Riffraff",
+        "confidence": 3.0,
+        "fid": "123208",
+        "distance": 17.457,
+        "type": ""
+      }
+    ],
+    "bestPipitMatch": "134557",
+    "bestPipitScore": 16.6307,
+    "overallBestMatch": "18383",
+    "overallBestSpecies": "Orange Pine Plover"
+  },
+  "11.mp3": {
+    "predictions": [
+      {
+        "species": "Bent-beak Riffraff",
+        "confidence": 24.7,
+        "fid": "73461",
+        "distance": 6.9876,
+        "type": ""
+      },
+      {
+        "species": "Orange Pine Plover",
+        "confidence": 12.5,
+        "fid": "327787",
+        "distance": 10.3124,
+        "type": ""
+      },
+      {
+        "species": "Queenscoat",
+        "confidence": 11.0,
+        "fid": "285968",
+        "distance": 10.5516,
+        "type": ""
+      },
+      {
+        "species": "Purple Tooting Tout",
+        "confidence": 7.0,
+        "fid": "68774",
+        "distance": 11.6936,
+        "type": ""
+      },
+      {
+        "species": "Scrawny Jay",
+        "confidence": 6.1,
+        "fid": "32402",
+        "distance": 10.9683,
+        "type": ""
+      }
+    ],
+    "bestPipitMatch": "405901",
+    "bestPipitScore": 10.7891,
+    "overallBestMatch": "73461",
+    "overallBestSpecies": "Bent-beak Riffraff"
+  },
+  "12.mp3": {
+    "predictions": [
+      {
+        "species": "Orange Pine Plover",
+        "confidence": 77.7,
+        "fid": "313159",
+        "distance": 8.6316,
+        "type": ""
+      },
+      {
+        "species": "Vermillion Trillian",
+        "confidence": 5.8,
+        "fid": "167835",
+        "distance": 12.6612,
+        "type": ""
+      },
+      {
+        "species": "Lesser Birchbeere",
+        "confidence": 2.1,
+        "fid": "148697",
+        "distance": 17.0449,
+        "type": ""
+      },
+      {
+        "species": "Scrawny Jay",
+        "confidence": 2.1,
+        "fid": "157395",
+        "distance": 16.6218,
+        "type": ""
+      },
+      {
+        "species": "Green-tipped Scarlet Pipit",
+        "confidence": 1.9,
+        "fid": "81030",
+        "distance": 16.8861,
+        "type": ""
+      }
+    ],
+    "bestPipitMatch": "163385",
+    "bestPipitScore": 16.057,
+    "overallBestMatch": "313159",
+    "overallBestSpecies": "Orange Pine Plover"
+  },
+  "13.mp3": {
+    "predictions": [
+      {
+        "species": "Rose-crested Blue Pipit",
+        "confidence": 51.8,
+        "fid": "222803",
+        "distance": 6.7477,
+        "type": ""
+      },
+      {
+        "species": "Bombadil",
+        "confidence": 6.5,
+        "fid": "160622",
+        "distance": 8.0325,
+        "type": ""
+      },
+      {
+        "species": "Blue-collared Zipper",
+        "confidence": 5.9,
+        "fid": "274462",
+        "distance": 9.4069,
+        "type": ""
+      },
+      {
+        "species": "Ordinary Snape",
+        "confidence": 5.9,
+        "fid": "393737",
+        "distance": 8.0465,
+        "type": ""
+      },
+      {
+        "species": "Queenscoat",
+        "confidence": 5.8,
+        "fid": "390555",
+        "distance": 9.7011,
+        "type": ""
+      }
+    ],
+    "bestPipitMatch": "222803",
+    "bestPipitScore": 6.7477,
+    "overallBestMatch": "222803",
+    "overallBestSpecies": "Rose-crested Blue Pipit"
+  },
+  "14.mp3": {
+    "predictions": [
+      {
+        "species": "Blue-collared Zipper",
+        "confidence": 14.0,
+        "fid": "230054",
+        "distance": 9.0368,
+        "type": ""
+      },
+      {
+        "species": "Orange Pine Plover",
+        "confidence": 12.0,
+        "fid": "333285",
+        "distance": 10.3844,
+        "type": ""
+      },
+      {
+        "species": "Darkwing Sparrow",
+        "confidence": 7.8,
+        "fid": "376566",
+        "distance": 10.2925,
+        "type": ""
+      },
+      {
+        "species": "Bombadil",
+        "confidence": 6.6,
+        "fid": "50610",
+        "distance": 10.3756,
+        "type": ""
+      },
+      {
+        "species": "Pinkfinch",
+        "confidence": 6.5,
+        "fid": "21100",
+        "distance": 9.7538,
+        "type": ""
+      }
+    ],
+    "bestPipitMatch": "295352",
+    "bestPipitScore": 10.333,
+    "overallBestMatch": "230054",
+    "overallBestSpecies": "Blue-collared Zipper"
+  },
+  "15.mp3": {
+    "predictions": [
+      {
+        "species": "Bent-beak Riffraff",
+        "confidence": 18.8,
+        "fid": "87864",
+        "distance": 6.5456,
+        "type": ""
+      },
+      {
+        "species": "Orange Pine Plover",
+        "confidence": 13.0,
+        "fid": "313625",
+        "distance": 7.4607,
+        "type": ""
+      },
+      {
+        "species": "Queenscoat",
+        "confidence": 10.8,
+        "fid": "78169",
+        "distance": 7.5861,
+        "type": ""
+      },
+      {
+        "species": "Blue-collared Zipper",
+        "confidence": 7.8,
+        "fid": "239019",
+        "distance": 7.354,
+        "type": ""
+      },
+      {
+        "species": "Purple Tooting Tout",
+        "confidence": 7.8,
+        "fid": "375499",
+        "distance": 6.9175,
+        "type": ""
+      }
+    ],
+    "bestPipitMatch": "222805",
+    "bestPipitScore": 7.3697,
+    "overallBestMatch": "87864",
+    "overallBestSpecies": "Bent-beak Riffraff"
+  }
+}
