@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import * as d3 from "d3";
 
 type BirdData = {
@@ -14,287 +14,413 @@ type BirdData = {
   Type: string;
 };
 
-export default function MapDashboard() {
-  const mapRef = useRef<SVGSVGElement>(null);
-  const [data, setData] = useState<BirdData[]>([]);
-  const [uniqueMonths, setUniqueMonths] = useState<string[]>([]);
-  const [uniqueSpecies, setUniqueSpecies] = useState<string[]>([]);
-  
-  // State for controls
-  const [startMonthIndex, setStartMonthIndex] = useState(0);
-  const [endMonthIndex, setEndMonthIndex] = useState(0);
-  const [selectedSpecies, setSelectedSpecies] = useState<Set<string>>(new Set());
-  const [viewMode, setViewMode] = useState<"scatter" | "heatmap">("scatter");
-  const [filterType, setFilterType] = useState<"all" | "call" | "song" | "both">("all");
-  const [isPlaying, setIsPlaying] = useState(false);
+type Tooltip = { x: number; y: number; bird: BirdData } | null;
 
-  // Load Data
+// Scales never change — domain is always 0-200, canvas 800×800
+const W = 800;
+const H = 800;
+const xSc = d3.scaleLinear().domain([0, 200]).range([0, W]);
+const ySc = d3.scaleLinear().domain([0, 200]).range([0, H]);
+const sym = d3.symbol();
+
+function shapeFor(type: string) {
+  if (type === "call") return d3.symbolCircle;
+  if (type === "song") return d3.symbolTriangle;
+  return d3.symbolSquare;
+}
+
+export default function MapDashboard() {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const gRef = useRef<d3.Selection<SVGGElement, unknown, null, undefined> | null>(null);
+  const colorRef = useRef<d3.ScaleOrdinal<string, string> | null>(null);
+
+  const [data, setData] = useState<BirdData[]>([]);
+  const [months, setMonths] = useState<string[]>([]);
+  const [species, setSpecies] = useState<string[]>([]);
+  const [startIdx, setStartIdx] = useState(0);
+  const [endIdx, setEndIdx] = useState(0);
+  const [selSpecies, setSelSpecies] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<"scatter" | "heatmap">("scatter");
+  const [typeFilter, setTypeFilter] = useState<"all" | "call" | "song" | "both">("all");
+  const [playing, setPlaying] = useState(false);
+  const [tooltip, setTooltip] = useState<Tooltip>(null);
+
+  // O(1) month index lookup
+  const monthMap = useMemo(() => {
+    const m = new Map<string, number>();
+    months.forEach((v, i) => m.set(v, i));
+    return m;
+  }, [months]);
+
+  // Color scale derived for React JSX (sidebar color dots)
+  const colorScale = useMemo(
+    () => d3.scaleOrdinal<string>(d3.schemeCategory10).domain(species),
+    [species]
+  );
+
+  // Visible sighting count for display
+  const sightingCount = useMemo(
+    () =>
+      data.filter((d) => {
+        const i = monthMap.get(d.YearMonth) ?? -1;
+        return (
+          i >= startIdx &&
+          i <= endIdx &&
+          selSpecies.has(d.English_name) &&
+          (typeFilter === "all" || d.Type === typeFilter)
+        );
+      }).length,
+    [data, monthMap, startIdx, endIdx, selSpecies, typeFilter]
+  );
+
+  // Load data
   useEffect(() => {
     fetch("/map_data.json")
-      .then((res) => res.json())
+      .then((r) => r.json())
       .then((json: BirdData[]) => {
         setData(json);
-        const months = Array.from(new Set(json.map((d) => d.YearMonth))).sort();
-        const species = Array.from(new Set(json.map((d) => d.English_name))).sort();
-        setUniqueMonths(months);
-        setUniqueSpecies(species);
-        // By default select all species
-        setSelectedSpecies(new Set(species));
-        setStartMonthIndex(0);
-        setEndMonthIndex(months.length > 0 ? months.length - 1 : 0); // Show all time by default
+        const ms = Array.from(new Set(json.map((d) => d.YearMonth))).sort();
+        const sp = Array.from(new Set(json.map((d) => d.English_name))).sort();
+        setMonths(ms);
+        setSpecies(sp);
+        setSelSpecies(new Set(sp));
+        setStartIdx(0);
+        setEndIdx(ms.length - 1);
       });
   }, []);
 
-  // Play animation effect
+  // Play animation — advances end index one step at a time
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isPlaying) {
-      interval = setInterval(() => {
-        setEndMonthIndex((prevEnd) => {
-          if (prevEnd >= uniqueMonths.length - 1) {
-            setIsPlaying(false);
-            return prevEnd;
-          }
-          return prevEnd + 1;
-        });
-      }, 500);
-    }
-    return () => clearInterval(interval);
-  }, [isPlaying, uniqueMonths.length]);
+    if (!playing) return;
+    const id = setInterval(() => {
+      setEndIdx((p) => {
+        if (p >= months.length - 1) {
+          setPlaying(false);
+          return p;
+        }
+        return p + 1;
+      });
+    }, 600);
+    return () => clearInterval(id);
+  }, [playing, months.length]);
 
-  const toggleSpecies = (species: string) => {
-    const newSet = new Set(selectedSpecies);
-    if (newSet.has(species)) {
-      newSet.delete(species);
-    } else {
-      newSet.add(species);
-    }
-    setSelectedSpecies(newSet);
-  };
-
-  const selectAllSpecies = () => setSelectedSpecies(new Set(uniqueSpecies));
-  const clearSpecies = () => setSelectedSpecies(new Set());
-
-  // Draw Map with D3
+  // ONE-TIME SVG SETUP — only reruns if the dataset itself changes (never in practice)
   useEffect(() => {
-    if (!data.length || !uniqueMonths.length || !mapRef.current) return;
-
-    const svg = d3.select(mapRef.current);
-    const width = 800;
-    const height = 800;
-    
+    if (!data.length || !species.length || !svgRef.current) return;
+    const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
-    
-    const defs = svg.append("defs");
-    const filter = defs.append("filter").attr("id", "blur-filter");
-    filter.append("feGaussianBlur").attr("stdDeviation", 4);
+    svg.append("defs")
+      .append("filter").attr("id", "blur")
+      .append("feGaussianBlur").attr("stdDeviation", 4);
+    colorRef.current = d3.scaleOrdinal<string>(d3.schemeCategory10).domain(species);
+    gRef.current = svg.append("g");
+  }, [data, species]);
 
-    const xScale = d3.scaleLinear().domain([0, 200]).range([0, width]);
-    const yScaleImage = d3.scaleLinear().domain([0, 200]).range([0, height]);
+  // DATA JOIN — updates only the dot layer, no full SVG rebuild
+  useEffect(() => {
+    const g = gRef.current;
+    const color = colorRef.current;
+    if (!g || !color || !months.length || !data.length) return;
 
-    // Color Scale for different birds
-    const colorScale = d3.scaleOrdinal(d3.schemeCategory10).domain(uniqueSpecies);
-
-    // Shape Generator
-    const symbolGenerator = d3.symbol();
-    const getShape = (type: string) => {
-      if (type === 'call') return d3.symbolCircle;
-      if (type === 'song') return d3.symbolTriangle;
-      return d3.symbolSquare; // both
-    };
-
-    // Filter data
-    let filteredData = data.filter((d) => {
-      const dIndex = uniqueMonths.indexOf(d.YearMonth);
-      return dIndex >= startMonthIndex && dIndex <= endMonthIndex;
+    const filtered = data.filter((d) => {
+      const i = monthMap.get(d.YearMonth) ?? -1;
+      return (
+        i >= startIdx &&
+        i <= endIdx &&
+        selSpecies.has(d.English_name) &&
+        (typeFilter === "all" || d.Type === typeFilter)
+      );
     });
 
-    filteredData = filteredData.filter((d) => selectedSpecies.has(d.English_name));
-
-    if (filterType !== "all") {
-      filteredData = filteredData.filter((d) => d.Type === filterType);
-    }
-
-    const g = svg.append("g");
-
     if (viewMode === "scatter") {
-      // Scatterplot using Paths for different shapes
-      g.selectAll("path")
-        .data(filteredData, (d: any) => d["File ID"])
+      g.selectAll("circle.hm").remove();
+
+      g.selectAll<SVGPathElement, BirdData>("path.dot")
+        .data(filtered, (d) => d["File ID"])
         .join(
-          enter => enter.append("path")
-            .attr("transform", d => `translate(${xScale(d.X)}, ${yScaleImage(200 - d.Y)}) scale(0)`)
-            .attr("d", d => symbolGenerator.type(getShape(d.Type)).size(100)()!)
-            .attr("fill", d => colorScale(d.English_name))
-            .attr("opacity", 0.8)
-            .attr("stroke", "#fff")
-            .attr("stroke-width", 1)
-            .call(enter => enter.transition().duration(300).attr("transform", d => `translate(${xScale(d.X)}, ${yScaleImage(200 - d.Y)}) scale(1)`)),
-          update => update
-            .attr("fill", d => colorScale(d.English_name))
-            .attr("d", d => symbolGenerator.type(getShape(d.Type)).size(100)()!),
-          exit => exit.transition().duration(300).attr("transform", d => `translate(${xScale(d.X)}, ${yScaleImage(200 - d.Y)}) scale(0)`).remove()
+          (enter) =>
+            enter
+              .append("path")
+              .attr("class", "dot")
+              .attr("transform", (d) => `translate(${xSc(d.X)},${ySc(200 - d.Y)}) scale(0)`)
+              .attr("d", (d) => sym.type(shapeFor(d.Type)).size(80)()!)
+              .attr("fill", (d) => color(d.English_name))
+              .attr("opacity", 0.85)
+              .attr("stroke", "#fff")
+              .attr("stroke-width", 0.8)
+              .style("cursor", "pointer")
+              .on("mouseover", (event, d) =>
+                setTooltip({ x: (event as MouseEvent).clientX, y: (event as MouseEvent).clientY, bird: d })
+              )
+              .on("mouseout", () => setTooltip(null))
+              .call((sel) =>
+                sel.transition().duration(200).attr("transform", (d) => `translate(${xSc(d.X)},${ySc(200 - d.Y)}) scale(1)`)
+              ),
+          (update) =>
+            update
+              .attr("d", (d) => sym.type(shapeFor(d.Type)).size(80)()!)
+              .attr("fill", (d) => color(d.English_name)),
+          (exit) =>
+            exit
+              .transition()
+              .duration(150)
+              .attr("transform", (d) => `translate(${xSc(d.X)},${ySc(200 - d.Y)}) scale(0)`)
+              .remove()
         );
     } else {
-      // Heatmap
-      g.selectAll("circle")
-        .data(filteredData, (d: any) => d["File ID"])
+      g.selectAll("path.dot").remove();
+
+      g.selectAll<SVGCircleElement, BirdData>("circle.hm")
+        .data(filtered, (d) => d["File ID"])
         .join(
-          enter => enter.append("circle")
-            .attr("cx", d => xScale(d.X))
-            .attr("cy", d => yScaleImage(200 - d.Y))
-            .attr("r", 0)
-            .attr("fill", "#f59e0b")
-            .attr("opacity", 0)
-            .attr("filter", "url(#blur-filter)")
-            .style("mix-blend-mode", "multiply")
-            .call(enter => enter.transition().duration(300).attr("r", 20).attr("opacity", 0.4)),
-          update => update,
-          exit => exit.transition().duration(300).attr("r", 0).attr("opacity", 0).remove()
+          (enter) =>
+            enter
+              .append("circle")
+              .attr("class", "hm")
+              .attr("cx", (d) => xSc(d.X))
+              .attr("cy", (d) => ySc(200 - d.Y))
+              .attr("r", 0)
+              .attr("opacity", 0)
+              .attr("fill", "#f59e0b")
+              .attr("filter", "url(#blur)")
+              .style("mix-blend-mode", "multiply")
+              .call((sel) => sel.transition().duration(200).attr("r", 20).attr("opacity", 0.4)),
+          (update) => update,
+          (exit) => exit.transition().duration(150).attr("r", 0).attr("opacity", 0).remove()
         );
     }
+  }, [data, months, monthMap, startIdx, endIdx, selSpecies, viewMode, typeFilter]);
 
-  }, [data, uniqueMonths, startMonthIndex, endMonthIndex, selectedSpecies, viewMode, filterType, uniqueSpecies]);
-
-  if (!uniqueMonths.length) return <div className="p-8 text-center text-stone-500 text-xl">Loading Spatiotemporal Data...</div>;
+  if (!months.length)
+    return <div className="p-8 text-center text-stone-500 text-xl">Loading Spatiotemporal Data...</div>;
 
   return (
-    <div className="flex flex-col md:flex-row gap-6 items-start max-w-[1100px] mx-auto">
-      {/* Sidebar Controls */}
-      <div className="w-full md:w-80 flex flex-col gap-5 bg-white p-5 rounded-xl shadow-lg border border-stone-200">
-        
-        <div>
-          <h2 className="text-xl font-bold text-stone-900">Filters</h2>
-          <p className="text-stone-500 text-sm mb-3">Filter by species and sounds</p>
-          
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-semibold text-stone-700">Bird Species</span>
-            <div className="space-x-2">
-              <button onClick={selectAllSpecies} className="text-xs text-indigo-600 hover:underline">All</button>
-              <button onClick={clearSpecies} className="text-xs text-stone-500 hover:underline">None</button>
-            </div>
-          </div>
-          
-          <div className="h-48 overflow-y-auto border border-stone-200 rounded-md p-2 bg-stone-50 text-sm space-y-1">
-            {uniqueSpecies.map(s => (
-              <label key={s} className="flex items-center gap-2 cursor-pointer hover:bg-stone-100 p-1 rounded">
-                <input 
-                  type="checkbox" 
-                  checked={selectedSpecies.has(s)} 
-                  onChange={() => toggleSpecies(s)}
-                  className="rounded text-indigo-600 focus:ring-indigo-500"
-                />
-                <span className="flex-1 truncate" title={s}>{s}</span>
-                {/* Tiny color indicator for scatter mode */}
-                {viewMode === "scatter" && (
-                  <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: d3.scaleOrdinal(d3.schemeCategory10).domain(uniqueSpecies)(s) }}></span>
-                )}
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <span className="text-sm font-semibold text-stone-700 block mb-2">Vocalization Type</span>
-          <div className="flex flex-wrap gap-2">
-             <button onClick={() => setFilterType("all")} className={`px-3 py-1 rounded-md text-sm font-medium transition-colors border ${filterType === "all" ? "bg-stone-800 text-white border-stone-800 shadow-sm" : "bg-white text-stone-600 border-stone-200 hover:bg-stone-50"}`}>All Types</button>
-             <button onClick={() => setFilterType("call")} className={`px-3 py-1 rounded-md text-sm font-medium transition-colors border flex items-center gap-2 ${filterType === "call" ? "bg-stone-800 text-white border-stone-800 shadow-sm" : "bg-white text-stone-600 border-stone-200 hover:bg-stone-50"}`}>
-               <span className="w-2.5 h-2.5 rounded-full border border-current bg-transparent"></span> Calls
-             </button>
-             <button onClick={() => setFilterType("song")} className={`px-3 py-1 rounded-md text-sm font-medium transition-colors border flex items-center gap-2 ${filterType === "song" ? "bg-stone-800 text-white border-stone-800 shadow-sm" : "bg-white text-stone-600 border-stone-200 hover:bg-stone-50"}`}>
-               <span className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[9px] border-b-current"></span> Songs
-             </button>
-             <button onClick={() => setFilterType("both")} className={`px-3 py-1 rounded-md text-sm font-medium transition-colors border flex items-center gap-2 ${filterType === "both" ? "bg-stone-800 text-white border-stone-800 shadow-sm" : "bg-white text-stone-600 border-stone-200 hover:bg-stone-50"}`}>
-               <span className="w-2.5 h-2.5 border border-current bg-transparent"></span> Both
-             </button>
-          </div>
-        </div>
-
-        <div>
-          <span className="text-sm font-semibold text-stone-700 block mb-2">View Mode</span>
-          <div className="flex gap-2">
-             <button onClick={() => setViewMode("scatter")} className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors border ${viewMode === "scatter" ? "bg-indigo-600 text-white border-indigo-600 shadow-sm" : "bg-white text-stone-600 border-stone-200 hover:bg-stone-50"}`}>Scatter (Dots)</button>
-             <button onClick={() => setViewMode("heatmap")} className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors border ${viewMode === "heatmap" ? "bg-amber-500 text-white border-amber-500 shadow-sm" : "bg-white text-stone-600 border-stone-200 hover:bg-stone-50"}`}>Heatmap</button>
-          </div>
-          {viewMode === "heatmap" && (
-            <p className="text-xs text-stone-500 mt-2">
-              Note: The heatmap visualizes the combined spatial density of all selected birds. Color indicates density, not species.
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Main Map Area */}
-      <div className="flex-1 flex flex-col gap-4 bg-white p-5 rounded-xl shadow-lg border border-stone-200 w-full">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-bold text-stone-900">Geospatial Distribution</h2>
-          <p className="text-stone-700 font-mono font-bold bg-stone-100 px-3 py-1 rounded-md border border-stone-200 text-sm">
-            {uniqueMonths[startMonthIndex]} <span className="text-stone-400">→</span> {uniqueMonths[endMonthIndex]}
+    <>
+      {/* Hover tooltip — fixed to viewport, above everything */}
+      {tooltip && (
+        <div
+          className="fixed z-50 bg-stone-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl pointer-events-none"
+          style={{ left: tooltip.x + 14, top: tooltip.y - 10 }}
+        >
+          <p className="font-semibold">{tooltip.bird.English_name}</p>
+          <p className="text-stone-300">
+            {tooltip.bird.YearMonth} · <span className="capitalize">{tooltip.bird.Type}</span>
           </p>
         </div>
+      )}
 
-        <div className="relative w-full aspect-square border-2 border-stone-300 rounded-lg overflow-hidden bg-stone-100 shadow-inner max-h-[600px]">
-          <img 
-            src="/map_background.bmp" 
-            alt="Lekagul Roadways Map" 
-            className="absolute inset-0 w-full h-full object-cover opacity-80"
-            style={{ imageRendering: "pixelated" }}
-          />
-          <svg 
-            ref={mapRef} 
-            viewBox="0 0 800 800" 
-            className="absolute inset-0 w-full h-full z-10"
-          />
-        </div>
-
-        <div className="flex flex-col gap-3 bg-stone-50 p-4 rounded-lg border border-stone-200 mt-2">
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setIsPlaying(!isPlaying)}
-              className="w-10 h-10 flex items-center justify-center bg-indigo-600 hover:bg-indigo-500 text-white rounded-full transition-colors shrink-0 shadow-sm"
-              title="Play Timeline"
-            >
-              {isPlaying ? (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
-              ) : (
-                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-              )}
-            </button>
-            
-            <div className="flex flex-col flex-1 gap-3">
-              {/* Distinct Start and End Sliders to fix overlap issues */}
-              <div className="flex items-center gap-3 text-sm">
-                <span className="w-10 text-stone-500 font-medium">Start</span>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max={uniqueMonths.length - 1} 
-                  value={startMonthIndex} 
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value);
-                    setStartMonthIndex(Math.min(val, endMonthIndex));
-                  }}
-                  className="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                />
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                <span className="w-10 text-stone-500 font-medium">End</span>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max={uniqueMonths.length - 1} 
-                  value={endMonthIndex} 
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value);
-                    setEndMonthIndex(Math.max(val, startMonthIndex));
-                  }}
-                  className="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                />
+      <div className="flex flex-col md:flex-row gap-6 items-start max-w-[1100px] mx-auto">
+        {/* Sidebar Controls */}
+        <div className="w-full md:w-72 flex flex-col gap-5 bg-white p-5 rounded-xl shadow-lg border border-stone-200 shrink-0">
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm font-semibold text-stone-700">
+                Bird Species{" "}
+                <span className="text-stone-400 font-normal text-xs">
+                  ({selSpecies.size}/{species.length})
+                </span>
+              </span>
+              <div className="space-x-2">
+                <button
+                  onClick={() => setSelSpecies(new Set(species))}
+                  className="text-xs text-indigo-600 hover:underline"
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setSelSpecies(new Set())}
+                  className="text-xs text-stone-500 hover:underline"
+                >
+                  None
+                </button>
               </div>
             </div>
+
+            <div className="h-52 overflow-y-auto border border-stone-200 rounded-md p-2 bg-stone-50 text-sm space-y-0.5">
+              {species.map((s) => (
+                <label
+                  key={s}
+                  className="flex items-center gap-2 cursor-pointer hover:bg-stone-100 px-1 py-1 rounded"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selSpecies.has(s)}
+                    onChange={() => {
+                      const next = new Set(selSpecies);
+                      next.has(s) ? next.delete(s) : next.add(s);
+                      setSelSpecies(next);
+                    }}
+                    className="rounded text-indigo-600 focus:ring-indigo-500 shrink-0"
+                  />
+                  <span className="flex-1 truncate text-xs" title={s}>
+                    {s}
+                  </span>
+                  {viewMode === "scatter" && (
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: colorScale(s) }}
+                    />
+                  )}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <span className="text-sm font-semibold text-stone-700 block mb-2">Vocalization Type</span>
+            <div className="grid grid-cols-2 gap-1.5">
+              {(
+                [
+                  { key: "all", label: "All Types" },
+                  { key: "call", label: "Call" },
+                  { key: "song", label: "Song" },
+                  { key: "both", label: "Call + Song" },
+                ] as const
+              ).map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setTypeFilter(key)}
+                  className={`px-2 py-1.5 rounded-md text-xs font-medium transition-colors border ${
+                    typeFilter === key
+                      ? "bg-stone-800 text-white border-stone-800 shadow-sm"
+                      : "bg-white text-stone-600 border-stone-200 hover:bg-stone-50"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <span className="text-sm font-semibold text-stone-700 block mb-2">View Mode</span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setViewMode("scatter")}
+                className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors border ${
+                  viewMode === "scatter"
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "bg-white text-stone-600 border-stone-200 hover:bg-stone-50"
+                }`}
+              >
+                Scatter
+              </button>
+              <button
+                onClick={() => setViewMode("heatmap")}
+                className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors border ${
+                  viewMode === "heatmap"
+                    ? "bg-amber-500 text-white border-amber-500"
+                    : "bg-white text-stone-600 border-stone-200 hover:bg-stone-50"
+                }`}
+              >
+                Heatmap
+              </button>
+            </div>
+          </div>
+
+          {viewMode === "scatter" && (
+            <div className="border-t border-stone-100 pt-3 space-y-1.5">
+              <span className="text-xs font-medium text-stone-600">Marker shapes</span>
+              <div className="flex gap-4 text-xs text-stone-500">
+                <span className="flex items-center gap-1.5">
+                  <svg width="10" height="10">
+                    <circle cx="5" cy="5" r="4" fill="#64748b" />
+                  </svg>
+                  Call
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <svg width="10" height="10">
+                    <polygon points="5,1 9,9 1,9" fill="#64748b" />
+                  </svg>
+                  Song
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <svg width="10" height="10">
+                    <rect x="1" y="1" width="8" height="8" fill="#64748b" />
+                  </svg>
+                  Both
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Main Map Area */}
+        <div className="flex-1 flex flex-col gap-4 bg-white p-5 rounded-xl shadow-lg border border-stone-200 min-w-0">
+          <div className="flex justify-between items-center gap-3 flex-wrap">
+            <h2 className="text-xl font-bold text-stone-900">Geospatial Distribution</h2>
+            <div className="flex items-center gap-3">
+              <span className="text-stone-400 text-sm">{sightingCount.toLocaleString()} sightings</span>
+              <span className="text-stone-700 font-mono font-bold bg-stone-100 px-3 py-1 rounded-md border border-stone-200 text-sm whitespace-nowrap">
+                {months[startIdx]} <span className="text-stone-400">→</span> {months[endIdx]}
+              </span>
+            </div>
+          </div>
+
+          <div className="relative w-full aspect-square border-2 border-stone-300 rounded-lg overflow-hidden bg-stone-100 shadow-inner max-h-[600px]">
+            <img
+              src="/map_background.bmp"
+              alt="Lekagul Roadways Map"
+              className="absolute inset-0 w-full h-full object-cover opacity-80"
+              style={{ imageRendering: "pixelated" }}
+            />
+            <svg ref={svgRef} viewBox="0 0 800 800" className="absolute inset-0 w-full h-full z-10" />
+          </div>
+
+          {/* Timeline controls */}
+          <div className="flex flex-col gap-2 bg-stone-50 p-4 rounded-lg border border-stone-200">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  // If at the end, reset before playing
+                  if (!playing && endIdx >= months.length - 1) setEndIdx(startIdx);
+                  setPlaying((p) => !p);
+                }}
+                className="w-9 h-9 flex items-center justify-center bg-indigo-600 hover:bg-indigo-500 text-white rounded-full transition-colors shrink-0 shadow-sm"
+                title={playing ? "Pause" : "Animate timeline"}
+              >
+                {playing ? (
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                  </svg>
+                ) : (
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                )}
+              </button>
+
+              <div className="flex flex-col flex-1 gap-2 min-w-0">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-stone-500 w-8 shrink-0">From</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={months.length - 1}
+                    value={startIdx}
+                    onChange={(e) => setStartIdx(Math.min(+e.target.value, endIdx))}
+                    className="flex-1 h-1.5 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 min-w-0"
+                  />
+                  <span className="text-stone-600 font-mono w-14 text-right shrink-0">{months[startIdx]}</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-stone-500 w-8 shrink-0">To</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={months.length - 1}
+                    value={endIdx}
+                    onChange={(e) => setEndIdx(Math.max(+e.target.value, startIdx))}
+                    className="flex-1 h-1.5 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 min-w-0"
+                  />
+                  <span className="text-stone-600 font-mono w-14 text-right shrink-0">{months[endIdx]}</span>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
