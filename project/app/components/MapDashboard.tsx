@@ -16,7 +16,6 @@ type BirdData = {
 
 type Tooltip = { x: number; y: number; bird: BirdData } | null;
 
-// Scales never change — domain is always 0-200, canvas 800×800
 const W = 800;
 const H = 800;
 const xSc = d3.scaleLinear().domain([0, 200]).range([0, W]);
@@ -42,53 +41,58 @@ export default function MapDashboard() {
   const [data, setData] = useState<BirdData[]>([]);
   const [months, setMonths] = useState<string[]>([]);
   const [species, setSpecies] = useState<string[]>([]);
+  const [years, setYears] = useState<number[]>([]);
+  const [selYear, setSelYear] = useState<number | "all">("all");
   const [startIdx, setStartIdx] = useState(0);
   const [endIdx, setEndIdx] = useState(0);
   const [selSpecies, setSelSpecies] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<"scatter" | "heatmap">("scatter");
-
-  // för toggle mellan kartor
   const [mapStyle, setMapStyle] = useState<"standard" | "realistic">(
     "standard",
   );
-
   const [typeFilter, setTypeFilter] = useState<
     "all" | "call" | "song" | "both"
   >("all");
   const [playing, setPlaying] = useState(false);
   const [tooltip, setTooltip] = useState<Tooltip>(null);
 
-  // för sliders
   const maxIdx = months.length - 1;
   const minPercent = maxIdx > 0 ? (startIdx / maxIdx) * 100 : 0;
   const maxPercent = maxIdx > 0 ? (endIdx / maxIdx) * 100 : 0;
 
-  // O(1) month index lookup
   const monthMap = useMemo(() => {
     const m = new Map<string, number>();
     months.forEach((v, i) => m.set(v, i));
     return m;
   }, [months]);
 
-  // Color scale derived for React JSX (sidebar color dots)
   const colorScale = useMemo(
     () => d3.scaleOrdinal<string>(d3.schemeCategory10).domain(species),
     [species],
   );
 
-  // Visible sighting count for display
+  // FIX 2: Justerad filterfunktion som används både för antal och D3-rendering
+  const filterData = (d: BirdData) => {
+    const i = monthMap.get(d.YearMonth) ?? -1;
+
+    // Om ett specifikt år är valt, filtrera på det året. Annars använd slider-intervallet.
+    const matchesTime =
+      selYear === "all" ? i >= startIdx && i <= endIdx : d.Year === selYear;
+
+    // Hantera "both" filter (om det betyder både call och song)
+    const matchesType =
+      typeFilter === "all"
+        ? true
+        : typeFilter === "both"
+          ? d.Type === "call" || d.Type === "song"
+          : d.Type === typeFilter;
+
+    return matchesTime && matchesType && selSpecies.has(d.English_name);
+  };
+
   const sightingCount = useMemo(
-    () =>
-      data.filter((d) => {
-        const i = monthMap.get(d.YearMonth) ?? -1;
-        return (
-          i >= startIdx &&
-          i <= endIdx &&
-          selSpecies.has(d.English_name) &&
-          (typeFilter === "all" || d.Type === typeFilter)
-        );
-      }).length,
-    [data, monthMap, startIdx, endIdx, selSpecies, typeFilter],
+    () => data.filter(filterData).length,
+    [data, monthMap, startIdx, endIdx, selSpecies, selYear, typeFilter],
   );
 
   // Load data
@@ -99,15 +103,22 @@ export default function MapDashboard() {
         setData(json);
         const ms = Array.from(new Set(json.map((d) => d.YearMonth))).sort();
         const sp = Array.from(new Set(json.map((d) => d.English_name))).sort();
+
+        // FIX 1: Hämta år direkt från d.Year istället för sträng-splitting
+        const yr = Array.from(new Set(json.map((d) => d.Year)))
+          .filter((y) => y !== undefined && !isNaN(y))
+          .sort((a, b) => a - b);
+
         setMonths(ms);
         setSpecies(sp);
+        setYears(yr);
         setSelSpecies(new Set(sp));
         setStartIdx(0);
         setEndIdx(ms.length - 1);
       });
   }, []);
 
-  // Play animation — advances end index one step at a time
+  // Play animation
   useEffect(() => {
     if (!playing) return;
     const id = setInterval(() => {
@@ -122,7 +133,7 @@ export default function MapDashboard() {
     return () => clearInterval(id);
   }, [playing, months.length]);
 
-  // ONE-TIME SVG SETUP — only reruns if the dataset itself changes (never in practice)
+  // ONE-TIME SVG SETUP
   useEffect(() => {
     if (!data.length || !species.length || !svgRef.current) return;
     const svg = d3.select(svgRef.current);
@@ -139,21 +150,14 @@ export default function MapDashboard() {
     gRef.current = svg.append("g");
   }, [data, species]);
 
-  // DATA JOIN — updates only the dot layer, no full SVG rebuild
+  // DATA JOIN
   useEffect(() => {
     const g = gRef.current;
     const color = colorRef.current;
     if (!g || !color || !months.length || !data.length) return;
 
-    const filtered = data.filter((d) => {
-      const i = monthMap.get(d.YearMonth) ?? -1;
-      return (
-        i >= startIdx &&
-        i <= endIdx &&
-        selSpecies.has(d.English_name) &&
-        (typeFilter === "all" || d.Type === typeFilter)
-      );
-    });
+    // Använder den centraliserade filterfunktionen här med
+    const filtered = data.filter(filterData);
 
     if (viewMode === "scatter") {
       g.selectAll("circle.hm").remove();
@@ -247,6 +251,7 @@ export default function MapDashboard() {
     startIdx,
     endIdx,
     selSpecies,
+    selYear,
     viewMode,
     typeFilter,
   ]);
@@ -260,7 +265,6 @@ export default function MapDashboard() {
 
   return (
     <>
-      {/* Hover tooltip — fixed to viewport, above everything */}
       {tooltip && (
         <div
           className="fixed z-50 bg-stone-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl pointer-events-none"
@@ -333,8 +337,25 @@ export default function MapDashboard() {
 
           <div>
             <span className="text-sm font-semibold text-stone-700 block mb-2">
-              Vocalization Type
+              Year
             </span>
+            <select
+              value={selYear}
+              onChange={(e) =>
+                setSelYear(e.target.value === "all" ? "all" : +e.target.value)
+              }
+              className="w-full px-3 py-2 rounded-md border border-stone-200 bg-white text-sm text-stone-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="all">All Years</option>
+              {years.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
             <div className="grid grid-cols-2 gap-1.5">
               {(
                 [
@@ -439,13 +460,13 @@ export default function MapDashboard() {
                 {sightingCount.toLocaleString()} sightings
               </span>
               <span className="text-stone-700 font-mono font-bold bg-stone-100 px-3 py-1 rounded-md border border-stone-200 text-sm whitespace-nowrap">
-                {months[startIdx]} <span className="text-stone-400">→</span>{" "}
-                {months[endIdx]}
+                {selYear === "all" ? months[startIdx] : `${selYear}-01`}{" "}
+                <span className="text-stone-400">→</span>{" "}
+                {selYear === "all" ? months[endIdx] : `${selYear}-12`}
               </span>
             </div>
           </div>
 
-          {/* ÄNDRAT: max-h-[600px] blev max-w-[600px], och mx-auto centrerar kartan om skärmen är jättestor */}
           <div className="relative w-full max-w-[600px] mx-auto aspect-square border-2 border-stone-300 rounded-lg overflow-hidden bg-stone-100 shadow-inner">
             <img
               src={
@@ -469,16 +490,18 @@ export default function MapDashboard() {
           </div>
 
           {/* Timeline controls */}
-          <div className="flex flex-col gap-2 bg-stone-50 p-4 rounded-lg border border-stone-200">
+          <div
+            className={`flex flex-col gap-2 bg-stone-50 p-4 rounded-lg border border-stone-200 transition-opacity ${selYear !== "all" ? "opacity-40 pointer-events-none" : ""}`}
+          >
             <div className="flex items-center gap-3">
               <button
+                disabled={selYear !== "all"}
                 onClick={() => {
-                  // If at the end, reset before playing
                   if (!playing && endIdx >= months.length - 1)
                     setEndIdx(startIdx);
                   setPlaying((p) => !p);
                 }}
-                className="w-9 h-9 flex items-center justify-center bg-indigo-600 hover:bg-indigo-500 text-white rounded-full transition-colors shrink-0 shadow-sm"
+                className="w-9 h-9 flex items-center justify-center bg-indigo-600 hover:bg-indigo-500 text-white rounded-full transition-colors shrink-0 shadow-sm disabled:bg-stone-300"
                 title={playing ? "Pause" : "Animate timeline"}
               >
                 {playing ? (
@@ -502,9 +525,7 @@ export default function MapDashboard() {
                 )}
               </button>
 
-              {/* Sliders */}
               <div className="flex flex-col flex-1 gap-1 min-w-0">
-                {/* Topprad som visar nuvarande intervall */}
                 <div className="flex justify-between text-xs text-stone-500 px-1 select-none">
                   <div>
                     From:{" "}
@@ -520,12 +541,8 @@ export default function MapDashboard() {
                   </div>
                 </div>
 
-                {/* Själva slider-ytan där båda reglagen delar spår */}
                 <div className="relative w-full h-5 flex items-center min-w-0">
-                  {/* 1. Det gråa bakgrundsspåret */}
                   <div className="absolute left-0 right-0 h-1.5 bg-stone-200 rounded-lg z-0" />
-
-                  {/* 2. Det färgade intervallet mellan startIdx och endIdx */}
                   <div
                     className="absolute h-1.5 bg-indigo-600 rounded-lg z-10"
                     style={{
@@ -533,33 +550,29 @@ export default function MapDashboard() {
                       right: `${100 - maxPercent}%`,
                     }}
                   />
-
-                  {/* 3. Från-slidern (Genomskinlig, men med synligt lila handtag) */}
                   <input
                     type="range"
                     min={0}
                     max={maxIdx}
                     value={startIdx}
+                    disabled={selYear !== "all"}
                     onChange={(e) =>
                       setStartIdx(Math.min(+e.target.value, endIdx))
                     }
                     className="absolute w-full h-1.5 appearance-none bg-transparent pointer-events-none cursor-pointer z-20 min-w-0
-            [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-600 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow
-            [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-indigo-600 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:shadow"
+                    [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-600 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow"
                   />
-
-                  {/* 4. Till-slidern (Genomskinlig, men med synligt lila handtag) */}
                   <input
                     type="range"
                     min={0}
                     max={maxIdx}
                     value={endIdx}
+                    disabled={selYear !== "all"}
                     onChange={(e) =>
                       setEndIdx(Math.max(+e.target.value, startIdx))
                     }
                     className="absolute w-full h-1.5 appearance-none bg-transparent pointer-events-none cursor-pointer z-20 min-w-0
-            [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-600 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow
-            [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-indigo-600 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:shadow"
+                    [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-indigo-600 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow"
                   />
                 </div>
               </div>
