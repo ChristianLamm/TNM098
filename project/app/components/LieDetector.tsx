@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AudioVisualizer from "./AudioVisualizer";
 
 type Prediction = {
@@ -19,125 +19,212 @@ type KasiosData = {
   overallBestSpecies: string;
 };
 
+// Sorted file keys: "1.mp3" < "2.mp3" < … < "15.mp3"
+function sortKeys(keys: string[]) {
+  return [...keys].sort((a, b) => parseInt(a) - parseInt(b));
+}
+
+function fmtDtw(d: number) {
+  return (d / 1000).toFixed(1) + "k";
+}
+
 export default function LieDetector() {
   const [comparisons, setComparisons] = useState<Record<string, KasiosData>>({});
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [compareTarget, setCompareTarget] = useState<"pipit" | "actual">("pipit");
+  const [compareMode, setCompareMode] = useState<"pipit" | "actual">("pipit");
 
   useEffect(() => {
     fetch("/comparisons.json")
-      .then(res => res.json())
-      .then(data => {
+      .then((r) => r.json())
+      .then((data: Record<string, KasiosData>) => {
         setComparisons(data);
-        const keys = Object.keys(data).sort((a, b) => {
-           const numA = parseInt(a.replace(/\D/g, ''));
-           const numB = parseInt(b.replace(/\D/g, ''));
-           return numA - numB;
-        });
-        if (keys.length > 0) setSelectedFile(keys[0]);
+        const keys = sortKeys(Object.keys(data));
+        if (keys.length) setSelectedFile(keys[0]);
       })
-      .catch(e => console.error("Error loading comparisons", e));
+      .catch((e) => console.error("Error loading comparisons", e));
   }, []);
 
-  if (!selectedFile || !comparisons[selectedFile]) return <div className="p-8 text-center text-stone-500 text-xl">Loading Classifier Data...</div>;
+  const fileKeys = useMemo(() => sortKeys(Object.keys(comparisons)), [comparisons]);
+
+  if (!selectedFile || !comparisons[selectedFile])
+    return (
+      <div className="p-8 text-center text-stone-500 text-xl">
+        Loading Classifier Data…
+      </div>
+    );
 
   const data = comparisons[selectedFile];
-  const topPrediction = data.predictions[0];
-  
-  const verifiedId = compareTarget === "pipit" ? data.bestPipitMatch : data.overallBestMatch;
-  const verifiedTitle = compareTarget === "pipit" 
-    ? `Best Pipit Match (ID: ${verifiedId})` 
-    : `Actual Species: ${data.overallBestSpecies} (ID: ${verifiedId})`;
+  const top = data.predictions[0];
+  const isPipit = top.species === "Rose-crested Blue Pipit";
+
+  const verifiedId = compareMode === "pipit" ? data.bestPipitMatch : data.overallBestMatch;
+  const verifiedDtw =
+    compareMode === "pipit" ? data.bestPipitScore : data.predictions[0].distance;
+  const verifiedType =
+    compareMode === "pipit"
+      ? null // no type stored for pipit best match
+      : data.predictions[0].type;
 
   const kasiosUrl = `/api/audio?type=kasios&filename=${selectedFile}`;
   const verifiedUrl = `/api/audio?type=verified&id=${verifiedId}`;
 
   return (
-    <div className="flex flex-col gap-6 p-6 bg-stone-50 rounded-xl shadow-lg border border-stone-200 mt-10">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+    <div className="flex flex-col gap-0 bg-stone-50 rounded-xl shadow-lg border border-stone-200 overflow-hidden mt-10">
+      {/* ── Header ── */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-6 py-5 bg-white border-b border-stone-200">
         <div>
-          <h2 className="text-2xl font-bold text-stone-900 mb-1">Lie Detector (Species Classifier)</h2>
-          <p className="text-stone-500 text-sm">Identifying the true identity of suspicious recordings using DTW and MFCC fingerprinting.</p>
+          <h2 className="text-2xl font-bold text-stone-900">Lie Detector</h2>
         </div>
-        
+
         <div className="flex gap-3 flex-wrap items-end">
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Target Kasios File</span>
-            <select 
+            <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider">
+              Kasios File
+            </span>
+            <select
               value={selectedFile}
               onChange={(e) => setSelectedFile(e.target.value)}
               className="bg-white border border-stone-300 text-stone-700 text-sm rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono shadow-sm cursor-pointer"
             >
-              {Object.keys(comparisons).sort((a, b) => parseInt(a.replace(/\D/g, '')) - parseInt(b.replace(/\D/g, ''))).map(f => <option key={f} value={f}>{f}</option>)}
+              {fileKeys.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
             </select>
           </div>
 
           <div className="flex flex-col gap-1">
-             <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Comparison Reference</span>
-             <div className="bg-white p-1 rounded-lg flex border border-stone-300 shadow-sm">
-               <button onClick={() => setCompareTarget("pipit")} className={`px-3 py-0.5 rounded-md text-sm font-medium transition-colors ${compareTarget === "pipit" ? "bg-red-600 text-white shadow-sm" : "text-stone-500 hover:text-stone-900"}`}>Claimed (Pipit)</button>
-               <button onClick={() => setCompareTarget("actual")} className={`px-3 py-0.5 rounded-md text-sm font-medium transition-colors ${compareTarget === "actual" ? "bg-indigo-600 text-white shadow-sm" : "text-stone-500 hover:text-stone-900"}`}>Actual Species</button>
+            <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider">
+              Compare Against
+            </span>
+            <div className="flex bg-white border border-stone-300 rounded-lg p-0.5 shadow-sm">
+              <button
+                onClick={() => setCompareMode("pipit")}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  compareMode === "pipit"
+                    ? "bg-rose-600 text-white shadow-sm"
+                    : "text-stone-500 hover:text-stone-900"
+                }`}
+              >
+                Claimed Pipit
+              </button>
+              <button
+                onClick={() => setCompareMode("actual")}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  compareMode === "actual"
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "text-stone-500 hover:text-stone-900"
+                }`}
+              >
+                Actual Species
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Predictions List */}
-        <div className="bg-white p-5 rounded-xl border border-stone-200 flex flex-col gap-4">
-          <h3 className="font-bold text-stone-800 border-b pb-2">Classifier Results</h3>
-          <div className="space-y-4">
-            {data.predictions.slice(0, 3).map((p, idx) => (
-              <div key={p.species} className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className={`font-semibold ${idx === 0 ? 'text-indigo-600' : 'text-stone-700'}`}>{p.species}</span>
-                  <span className="text-stone-500 font-mono">{p.confidence.toFixed(1)}%</span>
+      {/* ── Body ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 p-6">
+        {/* Left panel: classifier results */}
+        <div className="flex flex-col gap-4">
+          <div className="bg-white rounded-xl border border-stone-200 p-5 flex flex-col gap-4">
+            <h3 className="font-semibold text-stone-700 text-sm border-b border-stone-100 pb-2">
+              Top predictions
+            </h3>
+
+            <div className="space-y-3.5">
+              {data.predictions.map((p, idx) => (
+                <div key={p.species} className="space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span
+                      className={`font-semibold truncate pr-2 ${
+                        idx === 0 ? "text-indigo-600" : "text-stone-600"
+                      }`}
+                      title={p.species}
+                    >
+                      {idx === 0 && (
+                        <span className="text-stone-400 font-normal mr-1">1.</span>
+                      )}
+                      {p.species}
+                    </span>
+                    <span className="text-stone-400 font-mono shrink-0">
+                      {p.confidence.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-stone-100 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${
+                        idx === 0 ? "bg-indigo-500" : "bg-stone-300"
+                      }`}
+                      style={{ width: `${Math.min(p.confidence * 5, 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-stone-400 font-mono">
+                    DTW {fmtDtw(p.distance)} · {p.type}
+                  </p>
                 </div>
-                <div className="w-full bg-stone-100 h-2 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full transition-all duration-1000 ${idx === 0 ? 'bg-indigo-500' : 'bg-stone-300'}`} 
-                    style={{ width: `${p.confidence}%` }}
-                  ></div>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-          <div className="mt-4 p-3 bg-indigo-50 rounded-lg border border-indigo-100">
-            <p className="text-xs text-indigo-800 leading-relaxed">
-              <strong>Verdict:</strong> {topPrediction.species === 'Rose-crested Blue Pipit' 
-                ? "This recording likely belongs to a genuine Pipit." 
-                : `This recording is 100% NOT a Pipit. It matches the ${topPrediction.species} with highest confidence.`}
-            </p>
+
+          {/* Verdict */}
+          <div
+            className={`px-3 py-2.5 rounded-lg border text-xs ${
+              isPipit
+                ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                : "bg-rose-50 border-rose-200 text-rose-700"
+            }`}
+          >
+            <span className="font-semibold">{isPipit ? "Likely genuine" : "Not a Pipit"}</span>
+            {!isPipit && ` — matches ${top.species} (×${(data.bestPipitScore / top.distance).toFixed(1)} worse fit)`}
+          </div>
+
+          {/* DTW scores */}
+          <div className="bg-white rounded-xl border border-stone-200 p-4 text-xs space-y-1.5">
+            <div className="flex justify-between text-stone-500">
+              <span>Pipit distance</span>
+              <span className="font-mono text-stone-700">{fmtDtw(data.bestPipitScore)}</span>
+            </div>
+            <div className="flex justify-between text-stone-500">
+              <span>Actual species</span>
+              <span className="font-mono text-stone-700">{fmtDtw(top.distance)}</span>
+            </div>
+            <div className="flex justify-between border-t border-stone-100 pt-1.5 text-stone-600 font-medium">
+              <span>Ratio</span>
+              <span className="font-mono text-rose-500">×{(data.bestPipitScore / top.distance).toFixed(2)}</span>
+            </div>
           </div>
         </div>
 
-        {/* Center/Right: Audio Visualizers */}
-        <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <AudioVisualizer 
+        {/* Right panel: stacked spectrograms */}
+        <div className="flex flex-col gap-4">
+          <AudioVisualizer
             key={`kasios-${selectedFile}`}
-            title={`Kasios: ${selectedFile}`}
+            title={`Kasios submission — ${selectedFile}`}
+            subtitle="Claimed to be Rose-crested Blue Pipit"
             audioUrl={kasiosUrl}
             type="kasios"
           />
-          
-          <AudioVisualizer 
-            key={`verified-${verifiedId}`}
-            title={verifiedTitle}
+
+          <AudioVisualizer
+            key={`verified-${verifiedId}-${compareMode}`}
+            title={
+              compareMode === "pipit"
+                ? `Best Pipit match — ID ${verifiedId}`
+                : `Best match: ${data.overallBestSpecies} — ID ${verifiedId}`
+            }
+            subtitle={
+              compareMode === "pipit"
+                ? `Rose-crested Blue Pipit · DTW ${fmtDtw(data.bestPipitScore)}`
+                : `${data.overallBestSpecies}${verifiedType ? ` · ${verifiedType}` : ""} · DTW ${fmtDtw(verifiedDtw)}`
+            }
             audioUrl={verifiedUrl}
             type="verified"
           />
         </div>
       </div>
-      
-      <div className="text-sm text-stone-700 bg-amber-50/50 p-4 rounded-lg border border-amber-200 shadow-inner flex gap-3 items-start">
-        <div className="bg-amber-100 p-2 rounded-full text-amber-600 shrink-0">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-        </div>
-        <div>
-          <strong className="text-amber-800 block mb-0.5">Environmental Detective Tip:</strong> 
-          Use the <strong>"Actual Species"</strong> button to see how Recording 12 perfectly aligns with the Orange Pine Plover overview. Then switch to <strong>"Claimed (Pipit)"</strong> to see the massive structural mismatch. This visual evidence proves that Kasios submitted fake recordings to hide the Pipit's disappearance from the toxic dumping area.
-        </div>
-      </div>
+
     </div>
   );
 }
