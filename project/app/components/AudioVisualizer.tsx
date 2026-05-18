@@ -10,8 +10,7 @@ type Props = {
   type: "kasios" | "verified";
 };
 
-// Magma colormap: near-black → dark purple → orange → bright yellow
-// Silence/noise = dark; bird calls = amber/white — high contrast for frequency patterns
+// Magma colormap — values in 0-1 range (WaveSurfer multiplies by 255 internally)
 const MAGMA: [number, number, number, number][] = (() => {
   const stops = [
     [0, 0, 4],
@@ -27,12 +26,17 @@ const MAGMA: [number, number, number, number][] = (() => {
     [252, 253, 191],
   ];
   return Array.from({ length: 256 }, (_, i) => {
-    const t = (i / 255) * (stops.length - 1);
+    const t  = (i / 255) * (stops.length - 1);
     const lo = Math.floor(t);
     const hi = Math.min(lo + 1, stops.length - 1);
-    const f = t - lo;
-    const lerp = (a: number, b: number) => Math.round(a + (b - a) * f);
-    return [lerp(stops[lo][0], stops[hi][0]), lerp(stops[lo][1], stops[hi][1]), lerp(stops[lo][2], stops[hi][2]), 255] as [number, number, number, number];
+    const f  = t - lo;
+    const lerp = (a: number, b: number) => (a + (b - a) * f) / 255;
+    return [
+      lerp(stops[lo][0], stops[hi][0]),
+      lerp(stops[lo][1], stops[hi][1]),
+      lerp(stops[lo][2], stops[hi][2]),
+      1.0,
+    ] as [number, number, number, number];
   });
 })();
 
@@ -44,11 +48,11 @@ function fmtTime(s: number) {
 export default function AudioVisualizer({ audioUrl, title, subtitle, type }: Props) {
   const waveRef = useRef<HTMLDivElement>(null);
   const specRef = useRef<HTMLDivElement>(null);
-  const wsRef = useRef<WaveSurfer | null>(null);
+  const wsRef   = useRef<WaveSurfer | null>(null);
 
-  const [playing, setPlaying] = useState(false);
-  const [ready, setReady] = useState(false);
-  const [time, setTime] = useState(0);
+  const [playing,  setPlaying]  = useState(false);
+  const [ready,    setReady]    = useState(false);
+  const [time,     setTime]     = useState(0);
   const [duration, setDuration] = useState(0);
   const [showWave, setShowWave] = useState(false);
 
@@ -60,26 +64,27 @@ export default function AudioVisualizer({ audioUrl, title, subtitle, type }: Pro
     setDuration(0);
 
     const ws = WaveSurfer.create({
-      container: waveRef.current,
-      waveColor: type === "kasios" ? "#fb923c" : "#818cf8",
+      container:     waveRef.current,
+      waveColor:     type === "kasios" ? "#fb923c" : "#818cf8",
       progressColor: type === "kasios" ? "#ea580c" : "#4f46e5",
-      cursorColor: "rgba(255,255,255,0.6)",
-      cursorWidth: 1,
-      barWidth: 2,
-      barGap: 1,
-      barRadius: 1,
-      height: 56,
-      url: audioUrl,
+      cursorColor:   "rgba(255,255,255,0.8)",
+      cursorWidth:   1,
+      barWidth:      2,
+      barGap:        1,
+      barRadius:     1,
+      height:        56,
+      url:           audioUrl,
       plugins: [
         Spectrogram.create({
-          container: specRef.current,
-          labels: true,
+          container:        specRef.current,
+          labels:           true,
           labelsBackground: "rgba(0,0,0,0.55)",
-          labelsColor: "#94a3b8",
-          height: 240,
-          fftSamples: 1024,
-          frequencyMax: 10000,
-          colorMap: MAGMA,
+          labelsColor:      "#94a3b8",
+          height:           240,
+          fftSamples:       1024,
+          frequencyMax:     10000,
+          scale:            "mel",
+          colorMap:         MAGMA,
         }),
       ],
     });
@@ -88,9 +93,9 @@ export default function AudioVisualizer({ audioUrl, title, subtitle, type }: Pro
       setReady(true);
       setDuration(ws.getDuration());
     });
-    ws.on("play", () => setPlaying(true));
-    ws.on("pause", () => setPlaying(false));
-    ws.on("finish", () => setPlaying(false));
+    ws.on("play",       () => setPlaying(true));
+    ws.on("pause",      () => setPlaying(false));
+    ws.on("finish",     () => setPlaying(false));
     ws.on("timeupdate", (t: number) => setTime(t));
 
     wsRef.current = ws;
@@ -98,11 +103,21 @@ export default function AudioVisualizer({ audioUrl, title, subtitle, type }: Pro
   }, [audioUrl, type]);
 
   const togglePlay = () => wsRef.current?.playPause();
-  const skip = (delta: number) => wsRef.current?.skip(delta);
+  const skip       = (delta: number) => wsRef.current?.skip(delta);
+
+  // Clicking the spectrogram seeks to that position
+  const handleSpecClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!wsRef.current || !ready) return;
+    const rect  = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    wsRef.current.seekTo(ratio);
+  };
+
+  const cursorPct = duration > 0 ? (time / duration) * 100 : 0;
 
   return (
     <div className="flex flex-col bg-[#0c0c10] rounded-xl border border-stone-800 overflow-hidden shadow-xl">
-      {/* Header bar */}
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-stone-800/70">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-white truncate">{title}</p>
@@ -120,23 +135,42 @@ export default function AudioVisualizer({ audioUrl, title, subtitle, type }: Pro
         </button>
       </div>
 
-      {/* Visualization */}
+      {/* Visualizations */}
       <div className="relative bg-black">
         {!ready && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#0c0c10]/95">
-            <span className="text-stone-500 text-xs tracking-wide animate-pulse">Rendering spectrogram…</span>
+            <span className="text-stone-500 text-xs tracking-wide animate-pulse">
+              Rendering spectrogram…
+            </span>
           </div>
         )}
 
-        {/* Waveform — hidden until toggled, but always rendered so WaveSurfer stays mounted */}
+        {/* Waveform — toggled via height */}
         <div
           ref={waveRef}
           className="w-full overflow-hidden transition-[height] duration-300"
           style={{ height: showWave ? 56 : 0 }}
         />
 
-        {/* Spectrogram — always visible */}
-        <div ref={specRef} className="w-full" />
+        {/* Spectrogram + cursor overlay */}
+        <div
+          className="relative w-full"
+          onClick={handleSpecClick}
+          style={{ cursor: ready ? "pointer" : "default" }}
+        >
+          <div ref={specRef} className="w-full" />
+
+          {/* Playback cursor — white vertical line tracking position */}
+          {ready && duration > 0 && (
+            <div
+              className="absolute top-0 bottom-0 w-px pointer-events-none z-10"
+              style={{
+                left:       `${cursorPct}%`,
+                background: "rgba(255,255,255,0.75)",
+              }}
+            />
+          )}
+        </div>
       </div>
 
       {/* Playback controls */}
