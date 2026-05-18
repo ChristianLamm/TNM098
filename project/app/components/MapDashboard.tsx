@@ -46,6 +46,12 @@ export default function MapDashboard() {
   const [endIdx, setEndIdx] = useState(0);
   const [selSpecies, setSelSpecies] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<"scatter" | "heatmap">("scatter");
+
+  // för toggle mellan kartor
+  const [mapStyle, setMapStyle] = useState<"standard" | "realistic">(
+    "standard",
+  );
+
   const [typeFilter, setTypeFilter] = useState<
     "all" | "call" | "song" | "both"
   >("all");
@@ -417,6 +423,18 @@ export default function MapDashboard() {
               Geospatial Distribution
             </h2>
             <div className="flex items-center gap-3">
+              <button
+                onClick={() =>
+                  setMapStyle((prev) =>
+                    prev === "standard" ? "realistic" : "standard",
+                  )
+                }
+                className="text-xs font-medium bg-stone-100 hover:bg-stone-200 text-stone-700 px-3 py-1.5 rounded-md border border-stone-200 transition-colors shadow-sm"
+              >
+                {mapStyle === "standard"
+                  ? "Switch to Realistic Map"
+                  : "Switch to Standard Map"}
+              </button>
               <span className="text-stone-400 text-sm">
                 {sightingCount.toLocaleString()} sightings
               </span>
@@ -427,12 +445,21 @@ export default function MapDashboard() {
             </div>
           </div>
 
-          <div className="relative w-full aspect-square border-2 border-stone-300 rounded-lg overflow-hidden bg-stone-100 shadow-inner max-h-[600px]">
+          {/* ÄNDRAT: max-h-[600px] blev max-w-[600px], och mx-auto centrerar kartan om skärmen är jättestor */}
+          <div className="relative w-full max-w-[600px] mx-auto aspect-square border-2 border-stone-300 rounded-lg overflow-hidden bg-stone-100 shadow-inner">
             <img
-              src="/map_background.bmp"
+              src={
+                mapStyle === "standard"
+                  ? "/map_background.bmp"
+                  : "/realisticMap.png"
+              }
               alt="Lekagul Roadways Map"
-              className="absolute inset-0 w-full h-full object-cover opacity-80"
-              style={{ imageRendering: "pixelated" }}
+              className={`absolute inset-0 w-full h-full object-cover transition-all duration-300 ${
+                mapStyle === "standard" ? "opacity-80" : "opacity-100"
+              }`}
+              style={{
+                imageRendering: mapStyle === "standard" ? "pixelated" : "auto",
+              }}
             />
             <svg
               ref={svgRef}
