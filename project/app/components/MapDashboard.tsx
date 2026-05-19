@@ -561,9 +561,11 @@ export default function MapDashboard() {
         {/* Main Map Area */}
         <div className="flex-1 flex flex-col gap-4 bg-white p-5 rounded-xl shadow-lg border border-stone-200 min-w-0">
           <div className="flex justify-between items-center gap-3 flex-wrap">
-            <h2 className="text-xl font-bold text-stone-900">
-              Geospatial Distribution
-            </h2>
+            {!showComparison && (
+              <h2 className="text-xl font-bold text-stone-900">
+                Geospatial Distribution
+              </h2>
+            )}
             <div className="flex items-center gap-3">
               <button
                 onClick={() =>
@@ -727,7 +729,11 @@ export default function MapDashboard() {
           <div className="flex-1 flex flex-col gap-4 bg-white p-4 rounded-none shadow-none border-stone-200 min-w-0">
             <div className="flex justify-between items-center gap-3 flex-wrap">
               <div className="flex items-center gap-3">
-                <h2 className="text-xl font-bold text-stone-900">Comparison</h2>
+                {!showComparison && (
+                  <h2 className="text-xl font-bold text-stone-900">
+                    Comparison
+                  </h2>
+                )}
                 <button
                   onClick={() => setShowComparison(false)}
                   className="w-6 h-6 flex items-center justify-center text-stone-500 hover:text-stone-700 hover:bg-stone-100 rounded transition-colors"
