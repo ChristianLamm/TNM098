@@ -54,7 +54,6 @@ export default function AudioVisualizer({ audioUrl, title, subtitle, type }: Pro
   const [ready,    setReady]    = useState(false);
   const [time,     setTime]     = useState(0);
   const [duration, setDuration] = useState(0);
-  const [showWave, setShowWave] = useState(false);
 
   useEffect(() => {
     if (!waveRef.current || !specRef.current) return;
@@ -73,6 +72,7 @@ export default function AudioVisualizer({ audioUrl, title, subtitle, type }: Pro
       barGap:        1,
       barRadius:     1,
       height:        56,
+      normalize:     true,
       url:           audioUrl,
       plugins: [
         Spectrogram.create({
@@ -82,7 +82,6 @@ export default function AudioVisualizer({ audioUrl, title, subtitle, type }: Pro
           labelsColor:      "#94a3b8",
           height:           240,
           fftSamples:       1024,
-          frequencyMax:     10000,
           scale:            "mel",
           colorMap:         MAGMA,
         }),
@@ -123,16 +122,6 @@ export default function AudioVisualizer({ audioUrl, title, subtitle, type }: Pro
           <p className="text-sm font-semibold text-white truncate">{title}</p>
           {subtitle && <p className="text-xs text-stone-400 mt-0.5 truncate">{subtitle}</p>}
         </div>
-        <button
-          onClick={() => setShowWave((v) => !v)}
-          className={`ml-3 shrink-0 text-xs px-2.5 py-1 rounded-md border transition-colors ${
-            showWave
-              ? "bg-stone-700 text-white border-stone-600"
-              : "text-stone-500 border-stone-700 hover:text-stone-300 hover:border-stone-600"
-          }`}
-        >
-          {showWave ? "Hide waveform" : "Show waveform"}
-        </button>
       </div>
 
       {/* Visualizations */}
@@ -145,11 +134,11 @@ export default function AudioVisualizer({ audioUrl, title, subtitle, type }: Pro
           </div>
         )}
 
-        {/* Waveform — toggled via height */}
+        {/* Waveform */}
         <div
           ref={waveRef}
-          className="w-full overflow-hidden transition-[height] duration-300"
-          style={{ height: showWave ? 56 : 0 }}
+          className="w-full overflow-hidden"
+          style={{ height: 56 }}
         />
 
         {/* Spectrogram + cursor overlay */}
