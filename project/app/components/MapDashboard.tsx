@@ -420,7 +420,7 @@ export default function MapDashboard() {
       >
         {/* Sidebar Controls */}
         <div
-          className={`${showComparison ? "w-64 bg-white p-4 rounded-none shadow-none border-r border-stone-200" : "w-full md:w-72 bg-white p-5 rounded-xl shadow-lg border border-stone-200"} flex flex-col gap-5 shrink-0`}
+          className={`${showComparison ? "w-64 bg-white p-4 rounded-none shadow-none border-r border-stone-200" : "w-full md:w-72 bg-white p-5 rounded-xl shadow-lg border border-stone-200"} flex flex-col gap-5 shrink-0 transition-all`}
         >
           <div>
             <div className="flex justify-between items-center mb-2">
@@ -559,15 +559,23 @@ export default function MapDashboard() {
         </div>
 
         {/* Main Map Area */}
-        <div className="flex-1 flex flex-col gap-4 bg-white p-5 rounded-xl shadow-lg border border-stone-200 min-w-0">
-          <div className="flex justify-between items-center gap-3 flex-wrap">
+        <div
+          className={`flex-1 flex flex-col gap-4 bg-white min-w-0 transition-all ${
+            showComparison
+              ? "p-4 rounded-none shadow-none border-r border-stone-200"
+              : "p-5 rounded-xl shadow-lg border border-stone-200"
+          }`}
+        >
+          <div className="flex justify-between items-center gap-3 flex-wrap min-h-[40px]">
             {!showComparison && (
               <h2 className="text-xl font-bold text-stone-900">
                 Geospatial Distribution
               </h2>
             )}
-            <div className="flex items-center gap-3">
-              <button
+            <div
+              className={`flex items-center gap-3 ${showComparison ? "ml-auto" : ""}`}
+            >
+              {/* <button
                 onClick={() =>
                   setMapStyle((prev) =>
                     prev === "standard" ? "realistic" : "standard",
@@ -578,7 +586,7 @@ export default function MapDashboard() {
                 {mapStyle === "standard"
                   ? "Switch to Realistic Map"
                   : "Switch to Standard Map"}
-              </button>
+              </button> */}
               <span className="text-stone-400 text-sm">
                 {sightingCount.toLocaleString()} sightings
               </span>
@@ -726,14 +734,9 @@ export default function MapDashboard() {
 
         {/* Comparison Map Area */}
         {showComparison && (
-          <div className="flex-1 flex flex-col gap-4 bg-white p-4 rounded-none shadow-none border-stone-200 min-w-0">
-            <div className="flex justify-between items-center gap-3 flex-wrap">
+          <div className="flex-1 flex flex-col gap-4 bg-white p-4 rounded-none shadow-none min-w-0">
+            <div className="flex justify-between items-center gap-3 flex-wrap min-h-[40px]">
               <div className="flex items-center gap-3">
-                {!showComparison && (
-                  <h2 className="text-xl font-bold text-stone-900">
-                    Comparison
-                  </h2>
-                )}
                 <button
                   onClick={() => setShowComparison(false)}
                   className="w-6 h-6 flex items-center justify-center text-stone-500 hover:text-stone-700 hover:bg-stone-100 rounded transition-colors"
@@ -752,7 +755,7 @@ export default function MapDashboard() {
                 </button>
               </div>
               <div className="flex items-center gap-3">
-                <button
+                {/* <button
                   onClick={() =>
                     setMapStyle((prev) =>
                       prev === "standard" ? "realistic" : "standard",
@@ -763,7 +766,7 @@ export default function MapDashboard() {
                   {mapStyle === "standard"
                     ? "Switch to Realistic Map"
                     : "Switch to Standard Map"}
-                </button>
+                </button> */}
                 <span className="text-stone-400 text-sm">
                   {compSightingCount.toLocaleString()} sightings
                 </span>
