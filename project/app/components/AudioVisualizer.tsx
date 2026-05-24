@@ -10,26 +10,22 @@ type Props = {
   type: "kasios" | "verified";
 };
 
-// Magma colormap — values in 0-1 range (WaveSurfer multiplies by 255 internally)
-const MAGMA: [number, number, number, number][] = (() => {
+// White-to-indigo colormap — silence = white, peaks = deep indigo
+const INDIGO_MAP: [number, number, number, number][] = (() => {
   const stops = [
-    [0, 0, 4],
-    [27, 16, 68],
-    [59, 15, 112],
-    [100, 26, 128],
-    [140, 41, 129],
-    [182, 54, 121],
-    [222, 73, 104],
-    [247, 112, 92],
-    [254, 159, 109],
-    [254, 207, 146],
-    [252, 253, 191],
+    [255, 255, 255], // white    — silence
+    [237, 233, 254], // violet-100
+    [196, 181, 253], // violet-300
+    [139, 92, 246],  // violet-500
+    [79, 70, 229],   // indigo-600
+    [55, 48, 163],   // indigo-800
+    [30, 27, 75],    // indigo-950
   ];
   return Array.from({ length: 256 }, (_, i) => {
-    const t  = (i / 255) * (stops.length - 1);
+    const t = (i / 255) * (stops.length - 1);
     const lo = Math.floor(t);
     const hi = Math.min(lo + 1, stops.length - 1);
-    const f  = t - lo;
+    const f = t - lo;
     const lerp = (a: number, b: number) => (a + (b - a) * f) / 255;
     return [
       lerp(stops[lo][0], stops[hi][0]),
@@ -42,17 +38,24 @@ const MAGMA: [number, number, number, number][] = (() => {
 
 function fmtTime(s: number) {
   const m = Math.floor(s / 60);
-  return `${m}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
+  return `${m}:${Math.floor(s % 60)
+    .toString()
+    .padStart(2, "0")}`;
 }
 
-export default function AudioVisualizer({ audioUrl, title, subtitle, type }: Props) {
+export default function AudioVisualizer({
+  audioUrl,
+  title,
+  subtitle,
+  type,
+}: Props) {
   const waveRef = useRef<HTMLDivElement>(null);
   const specRef = useRef<HTMLDivElement>(null);
-  const wsRef   = useRef<WaveSurfer | null>(null);
+  const wsRef = useRef<WaveSurfer | null>(null);
 
-  const [playing,  setPlaying]  = useState(false);
-  const [ready,    setReady]    = useState(false);
-  const [time,     setTime]     = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
   useEffect(() => {
@@ -63,27 +66,27 @@ export default function AudioVisualizer({ audioUrl, title, subtitle, type }: Pro
     setDuration(0);
 
     const ws = WaveSurfer.create({
-      container:     waveRef.current,
-      waveColor:     type === "kasios" ? "#fb923c" : "#818cf8",
+      container: waveRef.current,
+      waveColor: type === "kasios" ? "#fb923c" : "#818cf8",
       progressColor: type === "kasios" ? "#ea580c" : "#4f46e5",
-      cursorColor:   "rgba(255,255,255,0.8)",
-      cursorWidth:   1,
-      barWidth:      2,
-      barGap:        1,
-      barRadius:     1,
-      height:        56,
-      normalize:     true,
-      url:           audioUrl,
+      cursorColor: "rgba(0,0,0,0.35)",
+      cursorWidth: 1,
+      barWidth: 2,
+      barGap: 1,
+      barRadius: 1,
+      height: 56,
+      normalize: true,
+      url: audioUrl,
       plugins: [
         Spectrogram.create({
-          container:        specRef.current,
-          labels:           true,
-          labelsBackground: "rgba(0,0,0,0.55)",
-          labelsColor:      "#94a3b8",
-          height:           240,
-          fftSamples:       1024,
-          scale:            "mel",
-          colorMap:         MAGMA,
+          container: specRef.current,
+          labels: true,
+          labelsBackground: "rgba(255,255,255,0.75)",
+          labelsColor: "#64748b",
+          height: 240,
+          fftSamples: 1024,
+          scale: "mel",
+          colorMap: INDIGO_MAP,
         }),
       ],
     });
@@ -92,9 +95,9 @@ export default function AudioVisualizer({ audioUrl, title, subtitle, type }: Pro
       setReady(true);
       setDuration(ws.getDuration());
     });
-    ws.on("play",       () => setPlaying(true));
-    ws.on("pause",      () => setPlaying(false));
-    ws.on("finish",     () => setPlaying(false));
+    ws.on("play", () => setPlaying(true));
+    ws.on("pause", () => setPlaying(false));
+    ws.on("finish", () => setPlaying(false));
     ws.on("timeupdate", (t: number) => setTime(t));
 
     wsRef.current = ws;
@@ -102,33 +105,38 @@ export default function AudioVisualizer({ audioUrl, title, subtitle, type }: Pro
   }, [audioUrl, type]);
 
   const togglePlay = () => wsRef.current?.playPause();
-  const skip       = (delta: number) => wsRef.current?.skip(delta);
+  const skip = (delta: number) => wsRef.current?.skip(delta);
 
   // Clicking the spectrogram seeks to that position
   const handleSpecClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!wsRef.current || !ready) return;
-    const rect  = e.currentTarget.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.max(
+      0,
+      Math.min(1, (e.clientX - rect.left) / rect.width),
+    );
     wsRef.current.seekTo(ratio);
   };
 
   const cursorPct = duration > 0 ? (time / duration) * 100 : 0;
 
   return (
-    <div className="flex flex-col bg-[#0c0c10] rounded-xl border border-stone-800 overflow-hidden shadow-xl">
+    <div className="flex flex-col bg-white rounded-xl border border-stone-200 overflow-hidden shadow-sm">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-stone-800/70">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-stone-200">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-white truncate">{title}</p>
-          {subtitle && <p className="text-xs text-stone-400 mt-0.5 truncate">{subtitle}</p>}
+          <p className="text-sm font-semibold text-stone-900 truncate">{title}</p>
+          {subtitle && (
+            <p className="text-xs text-stone-500 mt-0.5 truncate">{subtitle}</p>
+          )}
         </div>
       </div>
 
       {/* Visualizations */}
-      <div className="relative bg-black">
+      <div className="relative bg-stone-50">
         {!ready && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#0c0c10]/95">
-            <span className="text-stone-500 text-xs tracking-wide animate-pulse">
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-stone-50/95">
+            <span className="text-stone-400 text-xs tracking-wide animate-pulse">
               Rendering spectrogram…
             </span>
           </div>
@@ -154,8 +162,8 @@ export default function AudioVisualizer({ audioUrl, title, subtitle, type }: Pro
             <div
               className="absolute top-0 bottom-0 w-px pointer-events-none z-10"
               style={{
-                left:       `${cursorPct}%`,
-                background: "rgba(255,255,255,0.75)",
+                left: `${cursorPct}%`,
+                background: "rgba(0,0,0,0.35)",
               }}
             />
           )}
@@ -163,12 +171,12 @@ export default function AudioVisualizer({ audioUrl, title, subtitle, type }: Pro
       </div>
 
       {/* Playback controls */}
-      <div className="flex items-center gap-2.5 px-4 py-2.5 border-t border-stone-800/70">
+      <div className="flex items-center gap-2.5 px-4 py-2.5 border-t border-stone-200">
         <button
           onClick={() => skip(-5)}
           disabled={!ready}
           title="Back 5 s"
-          className="text-stone-500 hover:text-stone-200 disabled:opacity-25 transition-colors"
+          className="text-stone-400 hover:text-stone-700 disabled:opacity-25 transition-colors"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
             <path d="M6 6h2v12H6zm3.5 6 8.5 6V6z" />
@@ -178,7 +186,7 @@ export default function AudioVisualizer({ audioUrl, title, subtitle, type }: Pro
         <button
           onClick={togglePlay}
           disabled={!ready}
-          className="w-8 h-8 flex items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-stone-800 disabled:opacity-30 text-white transition-colors shadow"
+          className="w-8 h-8 flex items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-stone-200 disabled:opacity-30 text-white transition-colors shadow-sm"
         >
           {playing ? (
             <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
@@ -195,7 +203,7 @@ export default function AudioVisualizer({ audioUrl, title, subtitle, type }: Pro
           onClick={() => skip(5)}
           disabled={!ready}
           title="Forward 5 s"
-          className="text-stone-500 hover:text-stone-200 disabled:opacity-25 transition-colors"
+          className="text-stone-400 hover:text-stone-700 disabled:opacity-25 transition-colors"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
             <path d="M18 6h-2v12h2zm-3.5 6L6 6v12z" />
